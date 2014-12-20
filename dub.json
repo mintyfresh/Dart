@@ -1,10 +1,15 @@
 {
 	"name": "dart",
-	"description": "A simple vibe.d server application.",
-	"copyright": "Copyright © 2014, Mihail",
-	"authors": ["Mihail"],
+	"license": "MIT",
+	"description": "D Active Record Types",
+	"copyright": "Copyright © 2014, Mihail K",
+	"authors": ["Mihail K"],
 	"dependencies": {
-		"vibe-d": "~>0.7.19"
+		"vibe-d": "~>0.7.21",
+		"mysql-native": "~>0.1.0",
+		"dunit": "~>1.0.4"
 	},
-	"versions": ["VibeDefaultMain"]
+	"versions": [
+		"VibeDefaultMain"
+	]
 }
