@@ -1,6 +1,41 @@
 
 module dart.record;
 
+class ColumnInfo {
+
+    string name;
+
+    bool notNull;
+    bool autoIncrement;
+
+    uint maxLength;
+
+}
+
+class Record {
+
+    protected {
+
+        ColumnInfo[string] _columns;
+
+        /**
+         * Gets a column definition, by name.
+         **/
+        ColumnInfo _getColumnInfo(string name) {
+            return _columns[name];
+        }
+
+        /**
+         * Adds a column definition to this record.
+         **/
+        void _addColumnInfo(ColumnInfo ci) {
+            _columns[ci.name] = ci;
+        }
+
+    }
+
+}
+
 mixin template ActiveRecord() {
 
     /**
@@ -30,6 +65,13 @@ mixin template ActiveRecord() {
      * if it already exists.
      **/
     void save() {
+
+    }
+
+    /**
+     * Updates a single column in the database.
+     **/
+    void update(string name) {
 
     }
 
