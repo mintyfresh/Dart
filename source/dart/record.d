@@ -1,14 +1,18 @@
 
 module dart.record;
 
+public import std.conv;
 public import std.traits;
 public import std.variant;
+
+public import mysql.db;
 
 class ColumnInfo {
 
     string name;
     string field;
 
+    bool isId = false;
     bool notNull = true;
     bool autoIncrement = false;
 
@@ -35,6 +39,11 @@ class Record {
         string _table;
 
         /**
+         * The name of the primary id column.
+         **/
+        string _idColumn;
+
+        /**
          * The column info table, for this record type.
          **/
         ColumnInfo[string] _columns;
@@ -43,6 +52,8 @@ class Record {
          * The query table, for active record operations.
          **/
         string[string] _queries;
+
+        MysqlDB _db;
 
         /**
          * Gets a column definition, by name.
@@ -56,6 +67,13 @@ class Record {
          **/
         void _addColumnInfo(ColumnInfo ci) {
             _columns[ci.name] = ci;
+        }
+
+        /**
+         * Sets the database connection.
+         **/
+        void _setMysqlDB(MysqlDB db) {
+            _db = db;
         }
 
     }
@@ -76,6 +94,7 @@ struct MaxLength {
     int maxLength;
 }
 
+enum Id;
 enum Nullable;
 enum AutoIncrement;
 
@@ -141,14 +160,25 @@ mixin template ActiveRecord(T : Record) {
 
                         // Create delegate get and set.
                         info.get = delegate(Record local) {
-                                return Variant(__traits(getMember, cast(T)local, member));
+                                return Variant(__traits(getMember, cast(T)(local), member));
                         };
                         info.set = delegate(Record local, Variant v) {
-                                __traits(getMember, cast(T)local, member) = v.get!(typeof(current));
+                                __traits(getMember, cast(T)(local), member) = v.coerce!(typeof(current));
                         };
 
                         // Populate other fields.
                         foreach(annotation; __traits(getAttributes, current)) {
+                            // Check is @Id is present.
+                            static if(is(annotation == Id)) {
+                                if(_idColumn !is null) {
+                                    throw new Exception(T.stringof ~
+                                            " already defined an Id column.");
+                                }
+
+                                // Save the Id column.
+                                _idColumn = info.name;
+                                info.isId = true;
+                            }
                             // Check if @Nullable is present.
                             static if(is(annotation == Nullable)) {
                                 info.notNull = false;
@@ -171,18 +201,48 @@ mixin template ActiveRecord(T : Record) {
             }
         }
 
+        // Check is we have an Id.
+        if(_idColumn is null) {
+            throw new Exception(T.stringof ~
+                    " doesn't defined an Id column.");
+        }
+
         // Check if we have any columns.
         if(colCount == 0) {
             throw new Exception(T.stringof ~
                     " defines no valid columns.");
         }
+
     }
 
     /**
      * Gets an object by its primary key.
      **/
     static T get(KT)(KT key) {
-        return null;
+        auto conn = _db.lockConnection();
+        auto command = Command(conn);
+
+        string query = "SELECT * FROM " ~ _table ~
+                " WHERE " ~ _idColumn ~ "=?";
+        command.sql = query;
+        command.prepare();
+
+        command.bindParameter(key, 0);
+        auto result = command.execPreparedResult();
+
+        if(result.empty) {
+            throw new Exception("No records for for " ~
+                    T.stringof ~ " at " ~ to!string(key));
+        }
+
+        T instance = new T;
+        auto row = result[0];
+        foreach(int idx, string name; result.colNames) {
+            auto value = row[idx];
+            _columns[name].set(instance, value);
+        }
+
+        return instance;
     }
 
     /**
@@ -222,33 +282,5 @@ mixin template ActiveRecord(T : Record) {
     void remove() {
 
     }
-
-}
-
-unittest {
-
-    import std.stdio;
-
-    @Table("test_record")
-    class TestRecord : Record {
-
-        mixin ActiveRecord!(TestRecord);
-
-        @Column("test_id")
-        @AutoIncrement
-        int id;
-
-        @Column
-        @Nullable
-        string name;
-
-        static bool _hasColumnInfo(string name) {
-            return _columns !is null;
-        }
-
-    }
-
-    assert(TestRecord._hasColumnInfo("test_id"));
-    assert(TestRecord._hasColumnInfo("name"));
 
 }
