@@ -24,5 +24,6 @@ unittest {
 
     auto record = TestRecord.get(1);
     assert(record !is null);
+    assert(record.id == 1);
 
 }

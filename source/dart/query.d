@@ -17,10 +17,10 @@ class SelectBuilder : QueryBuilder {
 
     private {
 
-        string[] columns;
+        string[] _columns;
 
-        string table;
-        string where;
+        string _table;
+        string _where;
 
     }
 
@@ -34,7 +34,7 @@ class SelectBuilder : QueryBuilder {
             throw new Exception("Columns list cannot be null.");
         }
     } body {
-        this.columns = columns;
+        this._columns = columns;
         return this;
     }
 
@@ -48,20 +48,20 @@ class SelectBuilder : QueryBuilder {
             throw new Exception("Table cannot be null.");
         }
     } body {
-        this.table = table;
+        this._table = table;
         return this;
     }
 
     /**
      * Sets the 'WHERE' clause in the query.
      **/
-    SelectQuery where(string where)
+    SelectBuilder where(string where)
     in {
         if(where is null) {
             throw new Exception("Where cannot be null.");
         }
     } body {
-        this.where = where;
+        this._where = where;
         return this;
     }
 
@@ -70,9 +70,9 @@ class SelectBuilder : QueryBuilder {
 
         // Select.
         query.put("SELECT ");
-        if(columns !is null) {
+        if(_columns !is null) {
             // Select specific columns.
-            formattedWrite(query, "%-(`%s`%|, %)", columns);
+            formattedWrite(query, "%-(`%s`%|, %)", _columns);
         } else {
             // Select everything.
             query.put("*");
@@ -80,11 +80,11 @@ class SelectBuilder : QueryBuilder {
 
         // From.
         query.put(" FROM ");
-        query.put(table);
+        query.put(_table);
 
         // Where.
         query.put(" WHERE ");
-        query.put(where);
+        query.put(_where);
 
         query.put(";");
         return query.data;

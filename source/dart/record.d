@@ -10,6 +10,8 @@ public import std.variant;
 
 public import mysql.db;
 
+public import dart.query;
+
 class ColumnInfo {
 
     string name;
@@ -54,7 +56,7 @@ class Record {
         /**
          * The default query table, for active record operations.
          **/
-        string[string] _queries;
+        QueryBuilder[string] _queries;
 
         /**
          * Mysql database connection.
@@ -120,22 +122,20 @@ class Record {
 
         /**
          * Gets the query for get() operations.
-         *
-         * The parameters passed should not be inserted into the query,
-         * as they are bound to a prepared statement later.
          **/
-        string _getQueryForGet(KT)(KT key) {
-            return _queries["get"];
+        string _getQueryForGet() {
+            SelectBuilder builder = cast(SelectBuilder)_queries["get"];
+            return builder.where("`" ~ _idColumn ~ "`=?").build();
         }
 
         /**
         * Gets the query for find() operations.
-        *
-        * The parameters passed should not be inserted into the query,
-        * as they are bound to a prepared statement later.
         **/
-        string _getQuerForFind(KT)(KT[string] clause...) {
-            return _queries["find"];
+        string _getQuerForFind(string[] columns) {
+            auto query = appender!string;
+            SelectBuilder builder = cast(SelectBuilder)_queries["find"];
+            formattedWrite(query, "%-(`%s`=?%| AND %)", columns);
+            return builder.where(query.data).build();
         }
 
     }
@@ -199,16 +199,6 @@ static string getColumnDefinition(T, string member)() {
     return null;
 }
 
-/**
- * Return the column list for a Record type,
- * as a comma-separated list.
- **/
-static string buildColumnList(T : Record)() {
-    auto query = appender!string;
-    formattedWrite(query, "%-(`%s`%|, %)", T._getColumns);
-    return query.data;
-}
-
 mixin template ActiveRecord(T : Record) {
 
     static this() {
@@ -222,8 +212,8 @@ mixin template ActiveRecord(T : Record) {
                 alias current = Target!(__traits(getMember, T, member));
 
                 // Check if this is a column.
-                static if(!(is(typeof(current) == function)) &&
-                        !(is(typeof(current!int) == function))) {
+                static if(!((is(typeof(current) == function)) ||
+                        member == "get" || member == "find")) {
                     // Find a column name.
                     string name = getColumnDefinition!(T, member);
 
@@ -290,10 +280,10 @@ mixin template ActiveRecord(T : Record) {
         }
 
         // Build default queries for record.
-        _queries["get"] = "SELECT " ~ buildColumnList!T ~ " FROM `" ~
-                _table ~ "` WHERE `" ~ _idColumn ~ "`=?";
-        _queries["find"] = "SELECT " ~ buildColumnList!T ~ " FROM `" ~
-                _table ~ "` WHERE ";
+        _queries["get"] = new SelectBuilder()
+                .select(_getColumns()).from(_table);
+        _queries["find"] = new SelectBuilder()
+                .select(_getColumns()).from(_table);
     }
 
     /**
@@ -306,7 +296,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Prepare the get() query.
         auto instance = new T;
-        command.sql = instance._getQueryForGet(key);
+        command.sql = instance._getQueryForGet;
         command.prepare();
 
         // Bind parameters and execute.
