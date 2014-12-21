@@ -1,6 +1,9 @@
 
 module dart.record;
 
+import std.array;
+import std.format;
+
 public import std.conv;
 public import std.traits;
 public import std.variant;
@@ -49,7 +52,7 @@ class Record {
         ColumnInfo[string] _columns;
 
         /**
-         * The query table, for active record operations.
+         * The default query table, for active record operations.
          **/
         string[string] _queries;
 
@@ -78,6 +81,13 @@ class Record {
         }
 
         /**
+         * Gets the column list for this record.
+         **/
+        string[] _getColumns() {
+            return _columns.keys;
+        }
+
+        /**
          * Gets the database connection.
          **/
         Connection _getDBConnection() {
@@ -102,6 +112,30 @@ class Record {
          **/
         void _setMysqlDB(MysqlDB db) {
             _db = db;
+        }
+
+    }
+
+    protected {
+
+        /**
+         * Gets the query for get() operations.
+         *
+         * The parameters passed should not be inserted into the query,
+         * as they are bound to a prepared statement later.
+         **/
+        string _getQueryForGet(KT)(KT key) {
+            return _queries["get"];
+        }
+
+        /**
+        * Gets the query for find() operations.
+        *
+        * The parameters passed should not be inserted into the query,
+        * as they are bound to a prepared statement later.
+        **/
+        string _getQuerForFind(KT)(KT[string] clause...) {
+            return _queries["find"];
         }
 
     }
@@ -163,6 +197,16 @@ static string getColumnDefinition(T, string member)() {
 
     // Not found.
     return null;
+}
+
+/**
+ * Return the column list for a Record type,
+ * as a comma-separated list.
+ **/
+static string buildColumnList(T : Record)() {
+    auto query = appender!string;
+    formattedWrite(query, "%-(`%s`%|, %)", T._getColumns);
+    return query.data;
 }
 
 mixin template ActiveRecord(T : Record) {
@@ -245,35 +289,44 @@ mixin template ActiveRecord(T : Record) {
                     " defines no valid columns.");
         }
 
+        // Build default queries for record.
+        _queries["get"] = "SELECT " ~ buildColumnList!T ~ " FROM `" ~
+                _table ~ "` WHERE `" ~ _idColumn ~ "`=?";
+        _queries["find"] = "SELECT " ~ buildColumnList!T ~ " FROM `" ~
+                _table ~ "` WHERE ";
     }
 
     /**
      * Gets an object by its primary key.
      **/
     static T get(KT)(KT key) {
+        // Get a database connection.
         auto conn = _getDBConnection();
         auto command = Command(conn);
 
-        string query = "SELECT * FROM " ~ _table ~
-                " WHERE " ~ _idColumn ~ "=?";
-        command.sql = query;
+        // Prepare the get() query.
+        auto instance = new T;
+        command.sql = instance._getQueryForGet(key);
         command.prepare();
 
+        // Bind parameters and execute.
         command.bindParameter(key, 0);
         auto result = command.execPreparedResult();
 
+        // Check that we got a result.
         if(result.empty) {
             throw new Exception("No records for for " ~
                     T.stringof ~ " at " ~ to!string(key));
         }
 
-        T instance = new T;
+        // Bind column values to fields.
         auto row = result[0];
         foreach(int idx, string name; result.colNames) {
             auto value = row[idx];
             _columns[name].set(instance, value);
         }
 
+        // Return the instance.
         return instance;
     }
 
