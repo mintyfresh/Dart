@@ -53,6 +53,14 @@ class Record {
          **/
         string[string] _queries;
 
+        /**
+         * Mysql database connection.
+         **/
+        Connection _dbConnection;
+
+        /**
+         * Mysql database connection.
+         **/
         MysqlDB _db;
 
         /**
@@ -67,6 +75,26 @@ class Record {
          **/
         void _addColumnInfo(ColumnInfo ci) {
             _columns[ci.name] = ci;
+        }
+
+        /**
+         * Gets the database connection.
+         **/
+        Connection _getDBConnection() {
+            if(_db !is null) {
+                return _db.lockConnection();
+            } else if(_dbConnection !is null) {
+                return _dbConnection;
+            } else {
+                throw new Exception("Record has no database connection.");
+            }
+        }
+
+        /**
+         * Sets the database connection.
+         **/
+        void _setDBConnection(Connection conn) {
+            _dbConnection = conn;
         }
 
         /**
@@ -119,6 +147,10 @@ static string getColumnDefinition(T, string member)() {
     // Search for @Column annotation.
     foreach(annotation; __traits(getAttributes,
             __traits(getMember, T, member))) {
+        // Check is @Id is present (implicit column).
+        static if(is(annotation == Id)) {
+            return member;
+        }
         // Check if @Column is present.
         static if(is(annotation == Column)) {
             return member;
@@ -219,7 +251,7 @@ mixin template ActiveRecord(T : Record) {
      * Gets an object by its primary key.
      **/
     static T get(KT)(KT key) {
-        auto conn = _db.lockConnection();
+        auto conn = _getDBConnection();
         auto command = Command(conn);
 
         string query = "SELECT * FROM " ~ _table ~
