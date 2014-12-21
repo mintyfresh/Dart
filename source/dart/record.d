@@ -1,15 +1,27 @@
 
 module dart.record;
 
+public import std.traits;
+public import std.variant;
+
 class ColumnInfo {
 
     string name;
     string field;
 
-    bool notNull;
-    bool autoIncrement;
+    bool notNull = true;
+    bool autoIncrement = false;
 
-    uint maxLength;
+    int maxLength = -1;
+
+    /**
+     * Gets the value of the field bound to this column.
+     **/
+    Variant delegate(Record) get;
+    /**
+    * Sets the value of the field bound to this column.
+    **/
+    void delegate(Record, Variant) set;
 
 }
 
@@ -46,15 +58,15 @@ struct Column {
     string name;
 }
 
-enum Nullable;
-enum AutoIncrement;
-
-struct ColumnLength {
+struct MaxLength {
     int maxLength;
 }
 
+enum Nullable;
+enum AutoIncrement;
 
-string getColumnDefinition(T, string member)() {
+
+static string getColumnDefinition(T, string member)() {
     // Search for @Column annotation.
     foreach(annotation; __traits(getAttributes,
             __traits(getMember, T, member))) {
@@ -81,15 +93,41 @@ mixin template ActiveRecord(T : Record) {
                 alias current = Target!(__traits(getMember, T, member));
 
                 // Check if this is a column.
-                static if(!(is(typeof(current) == function))) {
+                static if(!(is(typeof(current) == function)) &&
+                        !(is(typeof(current!int) == function))) {
                     // Find a column name.
                     string name = getColumnDefinition!(T, member);
 
                     // Check if the definition exists.
                     if(name !is null) {
+                        // Create a column info record.
                         auto info = new ColumnInfo();
                         info.field = member;
                         info.name = name;
+
+                        // Create delegate get and set.
+                        info.get = delegate(Record local) {
+                                return Variant(__traits(getMember, cast(T)local, member));
+                        };
+                        info.set = delegate(Record local, Variant v) {
+                                __traits(getMember, cast(T)local, member) = v.get!(typeof(current));
+                        };
+
+                        // Populate other fields.
+                        foreach(annotation; __traits(getAttributes, current)) {
+                            // Check if @Nullable is present.
+                            static if(is(annotation == Nullable)) {
+                                info.notNull = false;
+                            }
+                            // Check if @AutoIncrement is present.
+                            static if(is(annotation == AutoIncrement)) {
+                                info.autoIncrement = true;
+                            }
+                            // Check if @MaxLength(int) is present.
+                            static if(is(typeof(annotation) == MaxLength)) {
+                                info.maxLength = annotation.maxLength;
+                            }
+                        }
 
                         // Store the column definition.
                         _addColumnInfo(info);
@@ -168,7 +206,7 @@ unittest {
 
     }
 
-    writeln(TestRecord._hasColumnInfo("test_id"));
-    writeln(TestRecord._hasColumnInfo("name"));
+    assert(TestRecord._hasColumnInfo("test_id"));
+    assert(TestRecord._hasColumnInfo("name"));
 
 }
