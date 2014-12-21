@@ -145,3 +145,30 @@ mixin template ActiveRecord(T : Record) {
     }
 
 }
+
+unittest {
+
+    import std.stdio;
+
+    class TestRecord : Record {
+
+        mixin ActiveRecord!(TestRecord);
+
+        @Column("test_id")
+        @AutoIncrement
+        int id;
+
+        @Column
+        @Nullable
+        string name;
+
+        static bool _hasColumnInfo(string name) {
+            return _columns !is null;
+        }
+
+    }
+
+    writeln(TestRecord._hasColumnInfo("test_id"));
+    writeln(TestRecord._hasColumnInfo("name"));
+
+}
