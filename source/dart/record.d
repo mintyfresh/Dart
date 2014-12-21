@@ -30,9 +30,19 @@ class Record {
     protected static {
 
         /**
+         * The name of the corresponding table.
+         **/
+        string _table;
+
+        /**
          * The column info table, for this record type.
          **/
         ColumnInfo[string] _columns;
+
+        /**
+         * The query table, for active record operations.
+         **/
+        string[string] _queries;
 
         /**
          * Gets a column definition, by name.
@@ -54,6 +64,10 @@ class Record {
 
 alias Target(alias T) = T;
 
+struct Table {
+    string name;
+}
+
 struct Column {
     string name;
 }
@@ -65,6 +79,22 @@ struct MaxLength {
 enum Nullable;
 enum AutoIncrement;
 
+static string getTableDefinition(T)() {
+    // Search for @Column annotation.
+    foreach(annotation; __traits(getAttributes, T)) {
+        // Check if @Table is present.
+        static if(is(annotation == Table)) {
+            return T.stringof;
+        }
+        // Check if @Table("name") is present.
+        static if(is(typeof(annotation) == Table)) {
+            return annotation.name;
+        }
+    }
+
+    // Not found.
+    return T.stringof;
+}
 
 static string getColumnDefinition(T, string member)() {
     // Search for @Column annotation.
@@ -87,6 +117,10 @@ static string getColumnDefinition(T, string member)() {
 mixin template ActiveRecord(T : Record) {
 
     static this() {
+        // Check if the class defined an override name.
+        _table = getTableDefinition!(T);
+
+        int colCount = 0;
         // Search through class members.
         foreach(member; __traits(derivedMembers, T)) {
             static if(__traits(compiles, __traits(getMember, T, member))) {
@@ -131,9 +165,16 @@ mixin template ActiveRecord(T : Record) {
 
                         // Store the column definition.
                         _addColumnInfo(info);
+                        colCount++;
                     }
                 }
             }
+        }
+
+        // Check if we have any columns.
+        if(colCount == 0) {
+            throw new Exception(T.stringof ~
+                    " defines no valid columns.");
         }
     }
 
@@ -188,6 +229,7 @@ unittest {
 
     import std.stdio;
 
+    @Table("test_record")
     class TestRecord : Record {
 
         mixin ActiveRecord!(TestRecord);
