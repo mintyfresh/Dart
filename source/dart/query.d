@@ -34,31 +34,50 @@ class WhereBuilder : QueryBuilder {
         query = appender!string;
     }
 
+    /**
+     * Inserts an 'AND' operator.
+     **/
     WhereBuilder and() {
         query.put(" AND ");
         return this;
     }
 
+    /**
+     * Inserts a 'XOR' (exclusive or) operator.
+     **/
     WhereBuilder xor() {
         query.put(" XOR ");
         return this;
     }
 
+    /**
+     * Inserts an 'OR' operator.
+     **/
     WhereBuilder or() {
         query.put(" OR ");
         return this;
     }
 
+    /**
+     * Opens a set of parentheses.
+     **/
     WhereBuilder openParen() {
         query.put("(");
         return this;
     }
 
+    /**
+     * Closes a set of parentheses.
+     **/
     WhereBuilder closeParen() {
         query.put(")");
         return this;
     }
 
+    /**
+     * Performs a comparison between the column and a value,
+     * using the specified operator.
+     **/
     WhereBuilder compare(VT)(string column, string operator, VT value)
     in {
         if(column is null || operator is null) {
@@ -78,6 +97,9 @@ class WhereBuilder : QueryBuilder {
         return this;
     }
 
+    /**
+     * Performs an 'IS NULL' check on the specified column.
+     **/
     WhereBuilder isNull(string column)
     in {
         if(column is null) {
@@ -90,6 +112,9 @@ class WhereBuilder : QueryBuilder {
         return this;
     }
 
+    /**
+     * Performs an 'IS NOT NULL' check on the specified column.
+     **/
     WhereBuilder isNotNull(string column)
     in {
         if(column is null) {
@@ -102,38 +127,64 @@ class WhereBuilder : QueryBuilder {
         return this;
     }
 
+    /**
+     * Tests if a column is equal to the value.
+     **/
     WhereBuilder equals(VT)(string column, VT value) {
         return compare(column, "=", value);
     }
-
+    /**
+     * Tests if a column is not equal to the value.
+     **/
     WhereBuilder notEquals(VT)(string column, VT value) {
         return compare(column, "!=", value);
     }
 
+    /**
+     * Tests if a column is 'LIKE' the value.
+     **/
     WhereBuilder like(VT)(string column, VT value) {
         return compare(column, "LIKE", value);
     }
 
+    /**
+     * Tests if a column is 'NOT LIKE' the value.
+     **/
     WhereBuilder notLike(VT)(string column, VT value) {
         return compare(column, "NOT LIKE", value);
     }
 
+    /**
+     * Tests if a column is less than the value.
+     **/
     WhereBuilder lessThan(VT)(string column, VT value) {
         return compare(column, "<", value);
     }
 
+    /**
+     * Tests if a column is greater than the value.
+     **/
     WhereBuilder greaterThan(VT)(string column, VT value) {
         return compare(column, ">", value);
     }
 
+    /**
+     * Tests if a column is less than or equal to the value.
+     **/
     WhereBuilder lessOrEqual(VT)(string column, VT value) {
         return compare(column, "<=", value);
     }
 
+    /**
+     * Tests if a column is greater than or equal to the value.
+     **/
     WhereBuilder greaterOrEqual(VT)(string column, VT value) {
         return compare(column, ">=", value);
     }
 
+    /**
+     * Tests if the column appears in a set of values.
+     **/
     WhereBuilder whereIn(VT)(string column, VT[] values...)
     in {
         if(column is null || values is null) {
@@ -160,6 +211,9 @@ class WhereBuilder : QueryBuilder {
         return this;
     }
 
+    /**
+     * Tests if the column appears in a set of values produced by a query.
+     **/
     WhereBuilder whereIn(string column, SelectBuilder select)
     in {
         if(column is null || select is null) {
@@ -174,6 +228,9 @@ class WhereBuilder : QueryBuilder {
         return this;
     }
 
+    /**
+     * Tests if the column does not appear in a set of values.
+     **/
     WhereBuilder whereNotIn(VT)(string column, VT[] values...)
     in {
         if(column is null || values is null) {
@@ -200,6 +257,9 @@ class WhereBuilder : QueryBuilder {
         return this;
     }
 
+    /**
+     * Tests if the column does not appear in a set of values produced by a query.
+     **/
     WhereBuilder whereNotIn(string column, SelectBuilder select)
     in {
         if(column is null || select is null) {
