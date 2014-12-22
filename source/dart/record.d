@@ -161,6 +161,29 @@ class Record {
         }
 
         /**
+         * Gets the query for update() operations.
+         **/
+        QueryBuilder _getQueryForUpdate(string column = null) {
+            UpdateBuilder builder = cast(UpdateBuilder)_queries["update"];
+
+            if(column is null) {
+                // Set column values in query.
+                foreach(string name; _getColumns) {
+                    auto info = _getColumnInfo(name);
+                    builder.set(info.name, info.get(this));
+                }
+            } else {
+                // Set a single column value.
+                auto info = _getColumnInfo(column);
+                builder.set(info.name, info.get(this));
+            }
+
+            // Update the record using the primary id.
+            Variant id = _getColumnInfo(_idColumn).get(this);
+            return builder.where("`" ~ _idColumn ~ "`=?", id);
+        }
+
+        /**
          * Gets the query for remove() operations.
          **/
         QueryBuilder _getQueryForDelete() {
@@ -319,8 +342,10 @@ mixin template ActiveRecord(T : Record) {
                 .select(_getColumns).from(_getTable);
         _queries["create"] = new InsertBuilder()
                 .insert(_getColumns).into(_getTable);
+        _queries["update"] = new UpdateBuilder()
+                .update(_getTable).limit(1);
         _queries["remove"] = new DeleteBuilder()
-                .from(_table).limit(1);
+                .from(_getTable).limit(1);
     }
 
     /**
@@ -401,8 +426,7 @@ mixin template ActiveRecord(T : Record) {
     }
 
     /**
-     * Creates this object in the database,
-     * if it does not yet exist.
+     * Creates this object in the database, if it does not yet exist.
      **/
     void create() {
         // Get a database connection.
@@ -429,23 +453,57 @@ mixin template ActiveRecord(T : Record) {
     }
 
     /**
-     * Saves this object in the database,
-     * if it already exists.
+     * Saves this object in the database, if it already exists.
      **/
     void save() {
+        // Get a database connection.
+        auto conn = _getDBConnection;
+        auto command = Command(conn);
+        ulong result;
 
+        // Prepare the create() query.
+        auto query = _getQueryForUpdate;
+        command.sql = query.build;
+        command.prepare;
+
+        // Bind parameters and execute.
+        command.bindParameters(query.getParameters);
+        command.execPrepared(result);
+
+        // Check that something was created.
+        if(result < 1) {
+            throw new Exception("No record was updated for " ~
+                    T.stringof ~ " by save().");
+        }
     }
 
     /**
      * Updates a single column in the database.
      **/
     void update(string name) {
+        // Get a database connection.
+        auto conn = _getDBConnection;
+        auto command = Command(conn);
+        ulong result;
 
+        // Prepare the create() query.
+        auto query = _getQueryForUpdate(name);
+        command.sql = query.build;
+        command.prepare;
+
+        // Bind parameters and execute.
+        command.bindParameters(query.getParameters);
+        command.execPrepared(result);
+
+        // Check that something was created.
+        if(result < 1) {
+            throw new Exception("No record was created for " ~
+                    T.stringof ~ " by create().");
+        }
     }
 
     /**
-     * Removes this object from the database,
-     * if it already exists.
+     * Removes this object from the database, if it already exists.
      **/
     void remove() {
         // Get a database connection.
@@ -465,7 +523,7 @@ mixin template ActiveRecord(T : Record) {
         // Check that something was created.
         if(result < 1) {
             throw new Exception("No record was removed for " ~
-            T.stringof ~ " by remove().");
+                    T.stringof ~ " by remove().");
         }
     }
 

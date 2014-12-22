@@ -437,6 +437,19 @@ class UpdateBuilder : QueryBuilder {
         return this;
     }
 
+    /**
+     * Sets the result limit for this query.
+     **/
+    UpdateBuilder limit(int count)
+    in {
+        if(count < 0) {
+            throw new Exception("Limit cannot be negative.");
+        }
+    } body {
+        this.count = count;
+        return this;
+    }
+
     Variant[] getParameters() {
         return params;
     }
