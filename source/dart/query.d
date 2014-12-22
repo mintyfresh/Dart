@@ -284,7 +284,141 @@ class WhereBuilder : QueryBuilder {
 
 }
 
-mixin template OrderByBuilder(T : QueryBuilder) {
+mixin template FromFunctions(T : QueryBuilder) {
+
+    private {
+
+        string fromTable;
+
+        SelectBuilder fromQuery;
+        string fromAsName;
+
+    }
+
+    T from(string table)
+    in {
+        if(table is null) {
+            throw new Exception("Table cannot be null.");
+        }
+    } body {
+        fromTable = table;
+        return this;
+    }
+
+    T from(SelectBuilder query, string asName)
+    in {
+        if(query is null || asName is null) {
+            throw new Exception("Query and name cannot be null.");
+        }
+    } body {
+        fromQuery = query;
+        fromAsName = asName;
+        return this;
+    }
+
+    protected {
+
+        /**
+         * Checks if from information has been specified.
+         **/
+        bool hasFrom() {
+            return fromQuery !is null ||
+                    fromTable !is null;
+        }
+
+        /**
+         * Converts the from state into a query segment.
+         **/
+        string getFromSegment() {
+            auto query = appender!string;
+
+            // Check if we're using a query.
+            if(fromQuery !is null) {
+                formattedWrite(query, "%s AS %s",
+                        fromQuery.build, fromAsName);
+            } else {
+                formattedWrite(query, "`%s`", fromTable);
+            }
+
+            return query.data;
+        }
+
+    }
+
+}
+
+mixin template WhereFunctions(T : QueryBuilder) {
+
+    private {
+
+        string whereCondition;
+
+    }
+
+    /**
+     * Sets the select condition from a string.
+     **/
+    T where(VT)(string where, VT[] params...)
+    in {
+        if(where is null) {
+            throw new Exception("Condition cannot be null.");
+        }
+    } body {
+        // Assign query.
+        whereCondition = where;
+
+        // Query parameters.
+        if(params !is null && params.length > 0) {
+            static if(is(VT == Variant)) {
+                this.params = join([this.params, params]);
+            } else {
+                // Convert params to variant array.
+                foreach(param; params) {
+                    this.params ~= Variant(param);
+                }
+            }
+        }
+
+        return this;
+    }
+
+    /**
+     * Sets the select condition from a where condition builder.
+     **/
+    T where(WhereBuilder where)
+    in {
+        if(where is null) {
+            throw new Exception("Condition cannot be null.");
+        }
+    } body {
+        // Store query information.
+        whereCondition = where.build();
+        params = join([params, where.getParameters]);
+
+        return this;
+    }
+
+    protected {
+
+        /**
+         * Checks if a where condition has been specified.
+         **/
+        bool hasWhere() {
+            return whereCondition !is null;
+        }
+
+        /**
+         * Converts the where state into a query segment.
+         **/
+        string getWhereSegment() {
+            return whereCondition;
+        }
+
+    }
+
+}
+
+mixin template OrderByFunctions(T : QueryBuilder) {
 
     /**
      * A type spcifying an order-by column and direction.
@@ -393,9 +527,6 @@ class SelectBuilder : QueryBuilder {
         string command;
         string[] columns;
 
-        string table;
-        string condition;
-
         int count = -1;
 
         Variant[] params;
@@ -403,9 +534,17 @@ class SelectBuilder : QueryBuilder {
     }
 
     /**
+     * From component.
+     **/
+    mixin FromFunctions!(SelectBuilder);
+    /**
+     * Where component.
+     **/
+    mixin WhereFunctions!(SelectBuilder);
+    /**
      * Order-By component.
      **/
-    mixin OrderByBuilder!(SelectBuilder);
+    mixin OrderByFunctions!(SelectBuilder);
 
     /**
      * Creates a select query for the last insert id.
@@ -492,63 +631,6 @@ class SelectBuilder : QueryBuilder {
     }
 
     /**
-     * Sets the 'FROM' clause in the query.
-     **/
-    SelectBuilder from(string table)
-    in {
-        // Check that the table isn't null.
-        if(table is null) {
-            throw new Exception("Table cannot be null.");
-        }
-    } body {
-        this.table = table;
-        return this;
-    }
-
-    /**
-     * Sets the select condition from a string.
-     **/
-    SelectBuilder where(VT)(string where, VT[] params...)
-    in {
-        if(where is null) {
-            throw new Exception("Condition cannot be null.");
-        }
-    } body {
-        // Assign query.
-        condition = where;
-
-        // Query parameters.
-        if(params !is null && params.length > 0) {
-            static if(is(VT == Variant)) {
-                this.params = join([this.params, params]);
-            } else {
-                // Convert params to variant array.
-                foreach(param; params) {
-                    this.params ~= Variant(param);
-                }
-            }
-        }
-
-        return this;
-    }
-
-    /**
-     * Sets the select condition from a where condition builder.
-     **/
-    SelectBuilder where(WhereBuilder where)
-    in {
-        if(where is null) {
-            throw new Exception("Condition cannot be null.");
-        }
-    } body {
-        // Store query information.
-        condition = where.build();
-        this.params = join([this.params, where.getParameters]);
-
-        return this;
-    }
-
-    /**
      * Sets the result limit for this query.
      **/
     SelectBuilder limit(int count)
@@ -583,15 +665,15 @@ class SelectBuilder : QueryBuilder {
         }
 
         // From.
-        if(table !is null) {
+        if(hasFrom) {
             query.put(" FROM ");
-            query.put(table);
+            query.put(getFromSegment);
         }
 
         // Where.
-        if(condition !is null) {
+        if(hasWhere) {
             query.put(" WHERE ");
-            query.put(condition);
+            query.put(getWhereSegment);
         }
 
         // Order-By.
@@ -606,7 +688,6 @@ class SelectBuilder : QueryBuilder {
             query.put(to!string(count));
         }
 
-        query.put(";");
         return query.data;
     }
 
@@ -723,7 +804,6 @@ class DeleteBuilder : QueryBuilder {
     private {
 
         string table;
-        string condition;
 
         int count = -1;
 
@@ -732,65 +812,17 @@ class DeleteBuilder : QueryBuilder {
     }
 
     /**
+     * From component.
+     **/
+    mixin FromFunctions!(DeleteBuilder);
+    /**
+     * Where component.
+     **/
+    mixin WhereFunctions!(DeleteBuilder);
+    /**
      * Order-By component.
      **/
-    mixin OrderByBuilder!(DeleteBuilder);
-
-    /**
-     * Sets the 'FROM' clause in the query.
-     **/
-    DeleteBuilder from(string table)
-    in {
-        if(table is null) {
-            throw new Exception("Table cannot be null.");
-        }
-    } body {
-        this.table = table;
-        return this;
-    }
-
-    /**
-     * Sets the 'WHERE' clause in the query.
-     **/
-    DeleteBuilder where(VT)(string where, VT[] params...)
-    in {
-        if(where is null) {
-            throw new Exception("Condition cannot be null.");
-        }
-    } body {
-        // Assign query.
-        condition = where;
-
-        // Query parameters.
-        if(params !is null && params.length > 0) {
-            static if(is(VT == Variant)) {
-                this.params = join([this.params, params]);
-            } else {
-                // Convert params to variant array.
-                foreach(param; params) {
-                    this.params ~= Variant(param);
-                }
-            }
-        }
-
-        return this;
-    }
-
-    /**
-     * Sets the select condition from a where condition builder.
-     **/
-    DeleteBuilder where(WhereBuilder where)
-    in {
-        if(where is null) {
-            throw new Exception("Condition cannot be null.");
-        }
-    } body {
-        // Store query information.
-        condition = where.build();
-        this.params = join([this.params, where.getParameters]);
-
-        return this;
-    }
+    mixin OrderByFunctions!(DeleteBuilder);
 
     /**
      * Sets the result limit for this query.
@@ -816,13 +848,15 @@ class DeleteBuilder : QueryBuilder {
         query.put("DELETE ");
 
         // From.
-        query.put(" FROM ");
-        query.put(table);
+        if(hasFrom) {
+            query.put(" FROM ");
+            query.put(getFromSegment);
+        }
 
         // Where.
-        if(condition !is null) {
+        if(hasWhere) {
             query.put(" WHERE ");
-            query.put(condition);
+            query.put(getWhereSegment);
         }
 
         // Order-By.
@@ -849,7 +883,6 @@ class UpdateBuilder : QueryBuilder {
 
         string table;
         string[] columns;
-        string condition;
 
         int count = -1;
 
@@ -858,9 +891,13 @@ class UpdateBuilder : QueryBuilder {
     }
 
     /**
+     * Where component.
+     **/
+    mixin WhereFunctions!(UpdateBuilder);
+    /**
      * Order-By component.
      **/
-    mixin OrderByBuilder!(UpdateBuilder);
+    mixin OrderByFunctions!(UpdateBuilder);
 
     /**
      * Sets the table the update query targets.
@@ -913,49 +950,6 @@ class UpdateBuilder : QueryBuilder {
     }
 
     /**
-     * Sets the 'WHERE' clause in the query.
-     **/
-    UpdateBuilder where(VT)(string where, VT[] params...)
-    in {
-        if(where is null) {
-            throw new Exception("Condition cannot be null.");
-        }
-    } body {
-        // Assign query.
-        condition = where;
-
-        // Query parameters.
-        if(params !is null && params.length > 0) {
-            static if(is(VT == Variant)) {
-                this.params = join([this.params, params]);
-            } else {
-                // Convert params to variant array.
-                foreach(param; params) {
-                    this.params ~= Variant(param);
-                }
-            }
-        }
-
-        return this;
-    }
-
-    /**
-     * Sets the select condition from a where condition builder.
-     **/
-    UpdateBuilder where(WhereBuilder where)
-    in {
-        if(where is null) {
-            throw new Exception("Condition cannot be null.");
-        }
-    } body {
-        // Store query information.
-        condition = where.build();
-        this.params = join([this.params, where.getParameters]);
-
-        return this;
-    }
-
-    /**
      * Sets the result limit for this query.
      **/
     UpdateBuilder limit(int count)
@@ -983,9 +977,9 @@ class UpdateBuilder : QueryBuilder {
         formattedWrite(query, "%-(`%s`=?%|, %)", columns);
 
         // Where.
-        if(condition !is null) {
+        if(hasWhere) {
             query.put(" WHERE ");
-            query.put(condition);
+            query.put(getWhereSegment);
         }
 
         // Order-By.
