@@ -549,7 +549,7 @@ mixin template OrderByFunctions(T : QueryBuilder) {
     protected {
 
         /**
-         * Checks if Order-By information has been specified.
+         * Checks if order-by information has been specified.
          **/
         bool hasOrderBy() {
             return orderByColumns !is null &&
@@ -570,14 +570,53 @@ mixin template OrderByFunctions(T : QueryBuilder) {
 
 }
 
+mixin template LimitFunctions(T : QueryBuilder) {
+
+    private {
+
+        int limit = -1;
+
+    }
+
+    /**
+     * Sets the operation limit for the query.
+     **/
+    T limit(int count)
+    in {
+        if(count < 0) {
+            throw new Exception("Limit cannot be negative.");
+        }
+    } body {
+        limit = count;
+        return this;
+    }
+
+    protected {
+
+        /**
+         * Checks if a limit has been specified.
+         **/
+        bool hasLimit() {
+            return limit != -1;
+        }
+
+        /**
+         * Converts the limit state into a query segment.
+         **/
+        string getLimitSegment() {
+            return to!string(limit);
+        }
+
+    }
+
+}
+
 class SelectBuilder : QueryBuilder {
 
     private {
 
         string command;
         string[] columns;
-
-        int count = -1;
 
         Variant[] params;
 
@@ -595,6 +634,10 @@ class SelectBuilder : QueryBuilder {
      * Order-By component.
      **/
     mixin OrderByFunctions!(SelectBuilder);
+    /**
+     * Limit component.
+     **/
+    mixin LimitFunctions!(SelectBuilder);
 
     /**
      * Creates a select query for the last insert id.
@@ -680,19 +723,6 @@ class SelectBuilder : QueryBuilder {
         return this;
     }
 
-    /**
-     * Sets the result limit for this query.
-     **/
-    SelectBuilder limit(int count)
-    in {
-        if(count < 0) {
-            throw new Exception("Limit cannot be negative.");
-        }
-    } body {
-        this.count = count;
-        return this;
-    }
-
     Variant[] getParameters() {
         return params;
     }
@@ -733,9 +763,9 @@ class SelectBuilder : QueryBuilder {
         }
 
         // Limit.
-        if(count > -1) {
+        if(hasLimit) {
             query.put(" LIMIT ");
-            query.put(to!string(count));
+            query.put(getLimitSegment);
         }
 
         return query.data;
@@ -855,8 +885,6 @@ class DeleteBuilder : QueryBuilder {
 
         string table;
 
-        int count = -1;
-
         Variant[] params;
 
     }
@@ -873,19 +901,10 @@ class DeleteBuilder : QueryBuilder {
      * Order-By component.
      **/
     mixin OrderByFunctions!(DeleteBuilder);
-
     /**
-     * Sets the result limit for this query.
+     * Limit component.
      **/
-    DeleteBuilder limit(int count)
-    in {
-        if(count < 0) {
-            throw new Exception("Limit cannot be negative.");
-        }
-    } body {
-        this.count = count;
-        return this;
-    }
+    mixin LimitFunctions!(DeleteBuilder);
 
     Variant[] getParameters() {
         return params;
@@ -916,9 +935,9 @@ class DeleteBuilder : QueryBuilder {
         }
 
         // Limit.
-        if(count > -1) {
+        if(hasLimit) {
             query.put(" LIMIT ");
-            query.put(to!string(count));
+            query.put(getLimitSegment);
         }
 
         query.put(";");
@@ -934,8 +953,6 @@ class UpdateBuilder : QueryBuilder {
         string table;
         string[] columns;
 
-        int count = -1;
-
         Variant[] params;
 
     }
@@ -948,6 +965,10 @@ class UpdateBuilder : QueryBuilder {
      * Order-By component.
      **/
     mixin OrderByFunctions!(UpdateBuilder);
+    /**
+     * Limit component.
+     **/
+    mixin LimitFunctions!(UpdateBuilder);
 
     /**
      * Sets the table the update query targets.
@@ -999,19 +1020,6 @@ class UpdateBuilder : QueryBuilder {
         return this;
     }
 
-    /**
-     * Sets the result limit for this query.
-     **/
-    UpdateBuilder limit(int count)
-    in {
-        if(count < 0) {
-            throw new Exception("Limit cannot be negative.");
-        }
-    } body {
-        this.count = count;
-        return this;
-    }
-
     Variant[] getParameters() {
         return params;
     }
@@ -1039,9 +1047,9 @@ class UpdateBuilder : QueryBuilder {
         }
 
         // Limit.
-        if(count > -1) {
+        if(hasLimit) {
             query.put(" LIMIT ");
-            query.put(to!string(count));
+            query.put(getLimitSegment);
         }
 
         query.put(";");
