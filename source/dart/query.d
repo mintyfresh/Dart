@@ -321,12 +321,135 @@ class DeleteBuilder : QueryBuilder {
     string build() {
         auto query = appender!string;
 
-        // Select.
+        // Delete.
         query.put("DELETE ");
 
         // From.
         query.put(" FROM ");
         query.put(table);
+
+        // Where.
+        if(condition !is null) {
+            query.put(" WHERE ");
+            query.put(condition);
+        }
+
+        // Limit.
+        if(count > -1) {
+            query.put(" LIMIT ");
+            query.put(to!string(count));
+        }
+
+        query.put(";");
+        return query.data;
+    }
+
+}
+
+class UpdateBuilder : QueryBuilder {
+
+    private {
+
+        string table;
+        string[] columns;
+        string condition;
+
+        int count = -1;
+
+        Variant[] params;
+
+    }
+
+    /**
+     * Sets the table the update query targets.
+     **/
+    UpdateBuilder update(string table)
+    in {
+        if(table is null) {
+            throw new Exception("Table cannot be null.");
+        }
+    } body {
+        this.table = table;
+        return this;
+    }
+
+    /**
+     * Adds a column value to the update query.
+     **/
+    UpdateBuilder set(VT)(string name, VT value)
+    in {
+        if(name is null) {
+            throw new Exception("Column name cannot be null.");
+        }
+    } body {
+        columns ~= name;
+        params ~= value;
+        return this;
+    }
+
+    /**
+     * Adds multiple column values to the update query.
+     **/
+    UpdateBuilder set(VT)(VT[string] values...)
+    in {
+        if(name is null) {
+            throw new Exception("Values cannot be null.");
+        }
+    } body {
+        // Add the values.
+        foreach(name, value; values) {
+            columns ~= name;
+            // Convert value to variant.
+            static if(is(VT == Variant)) {
+                params ~= value;
+            } else {
+                params ~= Variant(value);
+            }
+        }
+
+        return this;
+    }
+
+    /**
+     * Sets the 'WHERE' clause in the query.
+     **/
+    UpdateBuilder where(VT)(string where, VT[] params...)
+    in {
+        if(where is null) {
+            throw new Exception("Where cannot be null.");
+        }
+    } body {
+        // Assign query.
+        condition = where;
+
+        // Query parameters.
+        if(params !is null && params.length > 0) {
+            static if(is(VT == Variant)) {
+                this.params = join([this.params, params]);
+            } else {
+                // Convert params to variant array.
+                foreach(param; params) {
+                    this.params ~= Variant(param);
+                }
+            }
+        }
+
+        return this;
+    }
+
+    Variant[] getParameters() {
+        return params;
+    }
+
+    string build() {
+        auto query = appender!string;
+
+        // Update.
+        query.put("UPDATE ");
+        query.put(table);
+
+        query.put(" SET ");
+        formattedWrite(query, "%-(`%s`=?%|, %)", columns);
 
         // Where.
         if(condition !is null) {
