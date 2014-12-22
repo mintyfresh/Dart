@@ -574,7 +574,7 @@ mixin template LimitFunctions(T : QueryBuilder) {
 
     private {
 
-        int limit = -1;
+        int count = -1;
 
     }
 
@@ -587,7 +587,7 @@ mixin template LimitFunctions(T : QueryBuilder) {
             throw new Exception("Limit cannot be negative.");
         }
     } body {
-        limit = count;
+        this.count = count;
         return this;
     }
 
@@ -597,14 +597,14 @@ mixin template LimitFunctions(T : QueryBuilder) {
          * Checks if a limit has been specified.
          **/
         bool hasLimit() {
-            return limit != -1;
+            return count != -1;
         }
 
         /**
          * Converts the limit state into a query segment.
          **/
         string getLimitSegment() {
-            return to!string(limit);
+            return to!string(count);
         }
 
     }
@@ -613,10 +613,51 @@ mixin template LimitFunctions(T : QueryBuilder) {
 
 class SelectBuilder : QueryBuilder {
 
+    /**
+     * Represents a select function call.
+     **/
+    struct SelectFunction {
+
+        string name;
+        string[] params;
+
+        bool hasValue() {
+            return name !is null;
+        }
+
+        string toString() {
+            auto query = appender!string;
+            formattedWrite(query, "%s(%-(%s%|, %))",
+                    name, params);
+            return query.data;
+        }
+
+    }
+
+    /**
+     * Stores a column list for a select operation.
+     **/
+    struct SelectColumns {
+
+        string[] columns;
+
+        bool hasValue() {
+            return columns !is null &&
+                    !columns.empty;
+        }
+
+        string toString() {
+            auto query = appender!string;
+            formattedWrite(query, "%-(`%s`%|, %)", columns);
+            return query.data;
+        }
+
+    }
+
     private {
 
-        string command;
-        string[] columns;
+        SelectFunction selectFunction;
+        SelectColumns selectColumns;
 
         Variant[] params;
 
@@ -650,14 +691,13 @@ class SelectBuilder : QueryBuilder {
     /**
      * Prepares a select query with a function and parameters.
      **/
-    SelectBuilder selectFunc(string command, string[] params = null...)
+    SelectBuilder selectFunc(string name, string[] params = null...)
     in {
-        if(command is null) {
-            throw new Exception("Command and column name cannot be null.");
+        if(name is null) {
+            throw new Exception("Function name cannot be null.");
         }
     } body {
-        this.command = command;
-        this.columns = params;
+        selectFunction = SelectFunction(name, params);
         return this;
     }
 
@@ -719,7 +759,7 @@ class SelectBuilder : QueryBuilder {
             throw new Exception("Columns list cannot be null.");
         }
     } body {
-        this.columns = columns;
+        selectColumns = SelectColumns(columns);
         return this;
     }
 
@@ -732,13 +772,12 @@ class SelectBuilder : QueryBuilder {
 
         // Select.
         query.put("SELECT ");
-        if(command !is null) {
+        if(selectFunction.hasValue) {
             // Select function.
-            query.put(command);
-            formattedWrite(query, "(%-(%s%|, %))", columns);
-        } else if(columns !is null) {
+            query.put(selectFunction.toString);
+        } else if(selectColumns.hasValue) {
             // Select specific columns.
-            formattedWrite(query, "%-(`%s`%|, %)", columns);
+            query.put(selectColumns.toString);
         } else {
             // Select everything.
             query.put("*");
