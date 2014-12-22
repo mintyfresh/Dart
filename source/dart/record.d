@@ -136,8 +136,8 @@ class Record {
         }
 
         /**
-        * Gets the query for find() operations.
-        **/
+         * Gets the query for find() operations.
+         **/
         QueryBuilder _getQueryForFind(KT)(KT[string] conditions) {
             auto query = appender!string;
             SelectBuilder builder = cast(SelectBuilder)_queries["find"];
@@ -291,6 +291,8 @@ mixin template ActiveRecord(T : Record) {
                 .select(_getColumns).from(_getTable);
         _queries["find"] = new SelectBuilder()
                 .select(_getColumns).from(_getTable);
+        _queries["create"] = new InsertBuilder()
+                .insert(_getColumns).into(_getTable);
     }
 
     /**
