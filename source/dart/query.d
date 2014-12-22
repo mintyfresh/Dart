@@ -49,6 +49,16 @@ class WhereBuilder : QueryBuilder {
         return this;
     }
 
+    WhereBuilder openParen() {
+        query.put("(");
+        return this;
+    }
+
+    WhereBuilder closeParen() {
+        query.put(")");
+        return this;
+    }
+
     WhereBuilder compare(VT)(string column, string operator, VT value)
     in {
         if(column is null || operator is null) {
@@ -64,6 +74,30 @@ class WhereBuilder : QueryBuilder {
         } else {
             params ~= Variant(value);
         }
+
+        return this;
+    }
+
+    WhereBuilder isNull(string column)
+    in {
+        if(column is null) {
+            throw new Exception("Column name cannot be null.");
+        }
+    } body {
+        // Append the query segment.
+        formattedWrite(query, "`%s` IS NULL", column);
+
+        return this;
+    }
+
+    WhereBuilder isNotNull(string column)
+    in {
+        if(column is null) {
+            throw new Exception("Column name cannot be null.");
+        }
+    } body {
+        // Append the query segment.
+        formattedWrite(query, "`%s` IS NOT NULL", column);
 
         return this;
     }
@@ -98,6 +132,86 @@ class WhereBuilder : QueryBuilder {
 
     WhereBuilder greaterOrEqual(VT)(string column, VT value) {
         return compare(column, ">=", value);
+    }
+
+    WhereBuilder whereIn(VT)(string column, VT[] values...)
+    in {
+        if(column is null || values is null) {
+            throw new Exception("Column name and values cannot be null.");
+        }
+    } body {
+        // Build the where-in clause.
+        query.put("`" ~ column ~ "` IN (");
+        foreach(int idx, value; values) {
+            query.put("?");
+            if(idx < values.length - 1) {
+                query.put(", ");
+            }
+
+            // Convert value to variant.
+            static if(is(VT == Variant)) {
+                params ~= value;
+            } else {
+                params ~= Variant(value);
+            }
+        }
+        query.put(")");
+
+        return this;
+    }
+
+    WhereBuilder whereIn(string column, SelectBuilder select)
+    in {
+        if(column is null || select is null) {
+            throw new Exception("Column name and values cannot be null.");
+        }
+    } body {
+        // Build the where-in clause.
+        query.put("`" ~ column ~ "` IN (");
+        query.put(select.build ~ ")");
+
+        params = join([params, select.getParameters]);
+        return this;
+    }
+
+    WhereBuilder whereNotIn(VT)(string column, VT[] values...)
+    in {
+        if(column is null || values is null) {
+            throw new Exception("Column name and values cannot be null.");
+        }
+    } body {
+        // Build the where-in clause.
+        query.put("`" ~ column ~ "` NOT IN (");
+        foreach(int idx, value; values) {
+            query.put("?");
+            if(idx < values.length - 1) {
+                query.put(", ");
+            }
+
+            // Convert value to variant.
+            static if(is(VT == Variant)) {
+                params ~= value;
+            } else {
+                params ~= Variant(value);
+            }
+        }
+        query.put(")");
+
+        return this;
+    }
+
+    WhereBuilder whereNotIn(string column, SelectBuilder select)
+    in {
+        if(column is null || select is null) {
+            throw new Exception("Column name and values cannot be null.");
+        }
+    } body {
+        // Build the where-in clause.
+        query.put("`" ~ column ~ "` NOT IN (");
+        query.put(select.build ~ ")");
+
+        params = join([params, select.getParameters]);
+        return this;
     }
 
     Variant[] getParameters() {
