@@ -284,6 +284,108 @@ class WhereBuilder : QueryBuilder {
 
 }
 
+mixin template OrderByBuilder(T : QueryBuilder) {
+
+    /**
+     * A type spcifying an order-by column and direction.
+     **/
+    struct OrderByInfo {
+
+        string column;
+        string direction;
+
+        string toString() {
+            auto query = appender!string;
+            query.put(column);
+            if(direction !is null) {
+                query.put(" " ~ direction);
+            }
+
+            return query.data;
+        }
+
+    }
+
+    private {
+
+        OrderByInfo[] orderByColumns;
+
+    }
+
+    /**
+     * Adds an order-by clause from a column name or expression
+     * and optionally a direction (ASC, DESC, etc.)
+     **/
+    T orderBy(string column, string direction = null)
+    in {
+        if(column is null) {
+            throw new Exception("Column name cannot be null.");
+        }
+    } body {
+        // Save the Order-By specifier.
+        orderByColumns ~= OrderByInfo(column, direction);
+
+        return this;
+    }
+
+    /**
+     * Adds a number of order-by clause from a list of
+     * column names or expressions.
+     **/
+    T orderBy(string[] columns...)
+    in {
+        if(columns is null) {
+            throw new Exception("Columns list cannot be null.");
+        }
+    } body {
+        // Add the columns to the list.
+        foreach(column; columns) {
+            orderByColumns ~= OrderByInfo(column);
+        }
+
+        return this;
+    }
+
+    /**
+     * Adds a number of order-by clause from a list of
+     * Order-By info structs.
+     **/
+    T orderBy(OrderByInfo[] columns...)
+    in {
+        if(columns is null) {
+            throw new Exception("Columns list cannot be null.");
+        }
+    } body {
+        // Append the list of specifiers.
+        orderByColumns = join([orderByColumns, columns]);
+
+        return this;
+    }
+
+    protected {
+
+        /**
+         * Checks if Order-By information has been specified.
+         **/
+        bool hasOrderBy() {
+            return orderByColumns !is null &&
+                    !orderByColumns.empty;
+        }
+
+        /**
+         * Converts the order-by state into a query segment.
+         **/
+        string getOrderBySegment() {
+            auto query = appender!string;
+            formattedWrite(query, "%-(%s%|, %)",
+                    orderByColumns);
+            return query.data;
+        }
+
+    }
+
+}
+
 class SelectBuilder : QueryBuilder {
 
     private {
@@ -299,6 +401,11 @@ class SelectBuilder : QueryBuilder {
         Variant[] params;
 
     }
+
+    /**
+     * Order-By component.
+     **/
+    mixin OrderByBuilder!(SelectBuilder);
 
     /**
      * Creates a select query for the last insert id.
@@ -487,6 +594,12 @@ class SelectBuilder : QueryBuilder {
             query.put(condition);
         }
 
+        // Order-By.
+        if(hasOrderBy) {
+            query.put(" ORDER BY ");
+            query.put(getOrderBySegment);
+        }
+
         // Limit.
         if(count > -1) {
             query.put(" LIMIT ");
@@ -619,6 +732,11 @@ class DeleteBuilder : QueryBuilder {
     }
 
     /**
+     * Order-By component.
+     **/
+    mixin OrderByBuilder!(DeleteBuilder);
+
+    /**
      * Sets the 'FROM' clause in the query.
      **/
     DeleteBuilder from(string table)
@@ -707,6 +825,12 @@ class DeleteBuilder : QueryBuilder {
             query.put(condition);
         }
 
+        // Order-By.
+        if(hasOrderBy) {
+            query.put(" ORDER BY ");
+            query.put(getOrderBySegment);
+        }
+
         // Limit.
         if(count > -1) {
             query.put(" LIMIT ");
@@ -732,6 +856,11 @@ class UpdateBuilder : QueryBuilder {
         Variant[] params;
 
     }
+
+    /**
+     * Order-By component.
+     **/
+    mixin OrderByBuilder!(UpdateBuilder);
 
     /**
      * Sets the table the update query targets.
@@ -857,6 +986,12 @@ class UpdateBuilder : QueryBuilder {
         if(condition !is null) {
             query.put(" WHERE ");
             query.put(condition);
+        }
+
+        // Order-By.
+        if(hasOrderBy) {
+            query.put(" ORDER BY ");
+            query.put(getOrderBySegment);
         }
 
         // Limit.
