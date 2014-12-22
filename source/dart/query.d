@@ -3,8 +3,14 @@ module dart.query;
 
 import std.array;
 import std.format;
+import std.variant;
 
 interface QueryBuilder {
+
+    /**
+     * Gets the list of query parameters.
+     **/
+    Variant[] getParameters();
 
     /**
      * Converts the current builder state into a query string.
@@ -17,10 +23,12 @@ class SelectBuilder : QueryBuilder {
 
     private {
 
-        string[] _columns;
+        string[] columns;
 
-        string _table;
-        string _where;
+        string table;
+        string condition;
+
+        Variant[] params;
 
     }
 
@@ -34,7 +42,7 @@ class SelectBuilder : QueryBuilder {
             throw new Exception("Columns list cannot be null.");
         }
     } body {
-        this._columns = columns;
+        this.columns = columns;
         return this;
     }
 
@@ -48,21 +56,39 @@ class SelectBuilder : QueryBuilder {
             throw new Exception("Table cannot be null.");
         }
     } body {
-        this._table = table;
+        this.table = table;
         return this;
     }
 
     /**
      * Sets the 'WHERE' clause in the query.
      **/
-    SelectBuilder where(string where)
+    SelectBuilder where(VT)(string where, VT[] params...)
     in {
         if(where is null) {
             throw new Exception("Where cannot be null.");
         }
     } body {
-        this._where = where;
+        // Assign query.
+        condition = where;
+
+        // Query parameters.
+        if(params !is null && params.length > 0) {
+            static if(is(VT == Variant)) {
+                this.params ~= params;
+            } else {
+                // Append values as variants.
+                foreach(VT value; params) {
+                    this.params ~= Variant(value);
+                }
+            }
+        }
+
         return this;
+    }
+
+    Variant[] getParameters() {
+        return params;
     }
 
     string build() {
@@ -70,9 +96,9 @@ class SelectBuilder : QueryBuilder {
 
         // Select.
         query.put("SELECT ");
-        if(_columns !is null) {
+        if(columns !is null) {
             // Select specific columns.
-            formattedWrite(query, "%-(`%s`%|, %)", _columns);
+            formattedWrite(query, "%-(`%s`%|, %)", columns);
         } else {
             // Select everything.
             query.put("*");
@@ -80,11 +106,11 @@ class SelectBuilder : QueryBuilder {
 
         // From.
         query.put(" FROM ");
-        query.put(_table);
+        query.put(table);
 
         // Where.
         query.put(" WHERE ");
-        query.put(_where);
+        query.put(condition);
 
         query.put(";");
         return query.data;

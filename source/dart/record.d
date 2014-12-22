@@ -130,19 +130,19 @@ class Record {
         /**
          * Gets the query for get() operations.
          **/
-        string _getQueryForGet() {
+        QueryBuilder _getQueryForGet(KT)(KT key) {
             SelectBuilder builder = cast(SelectBuilder)_queries["get"];
-            return builder.where("`" ~ _idColumn ~ "`=?").build();
+            return builder.where("`" ~ _idColumn ~ "`=?", Variant(key));
         }
 
         /**
         * Gets the query for find() operations.
         **/
-        string _getQueryForFind(string[] columns) {
+        QueryBuilder _getQueryForFind(KT)(KT[string] conditions) {
             auto query = appender!string;
             SelectBuilder builder = cast(SelectBuilder)_queries["find"];
-            formattedWrite(query, "%-(`%s`=?%| AND %)", columns);
-            return builder.where(query.data).build();
+            formattedWrite(query, "%-(`%s`=?%| AND %)", conditions.keys);
+            return builder.where(query.data, conditions.values);
         }
 
     }
@@ -303,11 +303,12 @@ mixin template ActiveRecord(T : Record) {
 
         // Prepare the get() query.
         auto instance = new T;
-        command.sql = instance._getQueryForGet;
+        auto query = instance._getQueryForGet(key);
+        command.sql = query.build();
         command.prepare();
 
         // Bind parameters and execute.
-        command.bindParameter(key, 0);
+        command.bindParameters(query.getParameters);
         auto result = command.execPreparedResult();
 
         // Check that we got a result.
@@ -337,19 +338,12 @@ mixin template ActiveRecord(T : Record) {
 
         // Prepare the find() query.
         auto instance = new T;
-        command.sql = instance._getQueryForFind(
-                conditions.keys);
+        auto query = instance._getQueryForFind(conditions);
+        command.sql = query.build();
         command.prepare();
 
         // Bind parameters and execute.
-        static if(is(KT == Variant)) {
-            command.bindParameters(conditions.values);
-        } else {
-            // Bind non-variant parameters.
-            foreach(int idx, KT value; conditions.values) {
-                command.bindParameter(value, idx);
-            }
-        }
+        command.bindParameters(query.getParameters);
         auto result = command.execPreparedResult();
 
         // Check that we got a result.
