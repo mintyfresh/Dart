@@ -26,4 +26,8 @@ unittest {
     assert(record !is null);
     assert(record.id == 1);
 
+    auto records = TestRecord.find(["name": "Test"]);
+    assert(records.length == 1);
+    assert(records[0].name == "Test");
+
 }

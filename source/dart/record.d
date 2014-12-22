@@ -83,6 +83,13 @@ class Record {
         }
 
         /**
+         * Gets the name of the table for this record.
+         **/
+        string _getTable() {
+            return _table;
+        }
+
+        /**
          * Gets the column list for this record.
          **/
         string[] _getColumns() {
@@ -131,7 +138,7 @@ class Record {
         /**
         * Gets the query for find() operations.
         **/
-        string _getQuerForFind(string[] columns) {
+        string _getQueryForFind(string[] columns) {
             auto query = appender!string;
             SelectBuilder builder = cast(SelectBuilder)_queries["find"];
             formattedWrite(query, "%-(`%s`=?%| AND %)", columns);
@@ -281,9 +288,9 @@ mixin template ActiveRecord(T : Record) {
 
         // Build default queries for record.
         _queries["get"] = new SelectBuilder()
-                .select(_getColumns()).from(_table);
+                .select(_getColumns).from(_getTable);
         _queries["find"] = new SelectBuilder()
-                .select(_getColumns()).from(_table);
+                .select(_getColumns).from(_getTable);
     }
 
     /**
@@ -306,7 +313,7 @@ mixin template ActiveRecord(T : Record) {
         // Check that we got a result.
         if(result.empty) {
             throw new Exception("No records for for " ~
-                    T.stringof ~ " at " ~ to!string(key));
+                    _getTable ~ " at " ~ to!string(key));
         }
 
         // Bind column values to fields.
@@ -323,8 +330,50 @@ mixin template ActiveRecord(T : Record) {
     /**
      * Finds matching objects, by column values.
      **/
-    static T[] find(KT)(KT[string] key...) {
-        return null;
+    static T[] find(KT)(KT[string] conditions...) {
+        // Get a database connection.
+        auto conn = _getDBConnection();
+        auto command = Command(conn);
+
+        // Prepare the find() query.
+        auto instance = new T;
+        command.sql = instance._getQueryForFind(
+                conditions.keys);
+        command.prepare();
+
+        // Bind parameters and execute.
+        static if(is(KT == Variant)) {
+            command.bindParameters(conditions.values);
+        } else {
+            // Bind non-variant parameters.
+            foreach(int idx, KT value; conditions.values) {
+                command.bindParameter(value, idx);
+            }
+        }
+        auto result = command.execPreparedResult();
+
+        // Check that we got a result.
+        if(result.empty) {
+            throw new Exception("No records for for " ~
+                    _getTable ~ " at " ~ to!string(conditions));
+        }
+
+        T[] array;
+        // Create the initial array of elements.
+        for(int i = 0; i < result.length; i++) {
+            auto row = result[i];
+            foreach(int idx, string name; result.colNames) {
+                auto value = row[idx];
+                _columns[name].set(instance, value);
+            }
+
+            // Append the object and create a new one.
+            array ~= instance;
+            instance = new T;
+        }
+
+        // Return the array.
+        return array;
     }
 
     /**
