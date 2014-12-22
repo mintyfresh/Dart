@@ -180,7 +180,7 @@ class InsertBuilder : QueryBuilder {
      * Parameters are passed through a prepared statement,
      * and never appear in the query string itself.
      **/
-    InsertBuilder values(VT)(VT value) {
+    InsertBuilder value(VT)(VT value) {
         static if(is(VT == Variant)) {
             params ~= value;
         } else {
@@ -234,10 +234,15 @@ class InsertBuilder : QueryBuilder {
         }
 
         // Values.
-        query.put(" VALUES ");
-        formattedWrite(query, "(%-(?%|, %))", params);
+        query.put(" VALUES (");
+        foreach(index, param; params) {
+            query.put("?");
+            if(index < params.length - 1) {
+                query.put(", ");
+            }
+        }
 
-        query.put(";");
+        query.put(");");
         return query.data;
     }
 

@@ -145,6 +145,32 @@ class Record {
             return builder.where(query.data, conditions.values);
         }
 
+        /**
+         * Gets the query for create() operations.
+         **/
+        QueryBuilder _getQueryForCreate() {
+            InsertBuilder builder = cast(InsertBuilder)_queries["create"];
+
+            // Add column values to query.
+            foreach(string name; _getColumns) {
+                auto info = _getColumnInfo(name);
+                builder.value(info.get(this));
+            }
+
+            return builder;
+        }
+
+        /**
+         * Gets the query for remove() operations.
+         **/
+        QueryBuilder _getQueryForDelete() {
+            DeleteBuilder builder = cast(DeleteBuilder)_queries["remove"];
+
+            // Delete the record using the primary id.
+            Variant id = _getColumnInfo(_idColumn).get(this);
+            return builder.where("`" ~ _idColumn ~ "`=?", id);
+        }
+
     }
 
 }
@@ -293,6 +319,8 @@ mixin template ActiveRecord(T : Record) {
                 .select(_getColumns).from(_getTable);
         _queries["create"] = new InsertBuilder()
                 .insert(_getColumns).into(_getTable);
+        _queries["remove"] = new DeleteBuilder()
+                .from(_table).limit(1);
     }
 
     /**
@@ -377,7 +405,27 @@ mixin template ActiveRecord(T : Record) {
      * if it does not yet exist.
      **/
     void create() {
+        // Get a database connection.
+        auto conn = _getDBConnection;
+        auto command = Command(conn);
+        ulong result;
 
+        // Prepare the create() query.
+        auto query = _getQueryForCreate;
+        command.sql = query.build;
+        command.prepare;
+
+        // Bind parameters and execute.
+        command.bindParameters(query.getParameters);
+        command.execPrepared(result);
+
+        // Check that something was created.
+        if(result < 1) {
+            throw new Exception("No record was created for " ~
+                    T.stringof ~ " by create().");
+        }
+
+        // TODO : Last insert id.
     }
 
     /**
@@ -400,7 +448,25 @@ mixin template ActiveRecord(T : Record) {
      * if it already exists.
      **/
     void remove() {
+        // Get a database connection.
+        auto conn = _getDBConnection;
+        auto command = Command(conn);
+        ulong result;
 
+        // Prepare the create() query.
+        auto query = _getQueryForDelete;
+        command.sql = query.build;
+        command.prepare;
+
+        // Bind parameters and execute.
+        command.bindParameters(query.getParameters);
+        command.execPrepared(result);
+
+        // Check that something was created.
+        if(result < 1) {
+            throw new Exception("No record was removed for " ~
+            T.stringof ~ " by remove().");
+        }
     }
 
 }
