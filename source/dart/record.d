@@ -54,11 +54,6 @@ class Record {
         ColumnInfo[string] _columns;
 
         /**
-         * The default query table, for active record operations.
-         **/
-        QueryBuilder[string] _queries;
-
-        /**
          * Mysql database connection.
          **/
         Connection _dbConnection;
@@ -131,7 +126,8 @@ class Record {
          * Gets the query for get() operations.
          **/
         QueryBuilder _getQueryForGet(KT)(KT key) {
-            SelectBuilder builder = cast(SelectBuilder)_queries["get"];
+            SelectBuilder builder = new SelectBuilder()
+                    .select(_getColumns).from(_getTable).limit(1);
             return builder.where(new WhereBuilder().equals(_idColumn, key));
         }
 
@@ -140,7 +136,8 @@ class Record {
          **/
         QueryBuilder _getQueryForFind(KT)(KT[string] conditions) {
             auto query = appender!string;
-            SelectBuilder builder = cast(SelectBuilder)_queries["find"];
+            SelectBuilder builder = new SelectBuilder()
+                    .select(_getColumns).from(_getTable);
             formattedWrite(query, "%-(`%s`=?%| AND %)", conditions.keys);
             return builder.where(query.data, conditions.values);
         }
@@ -149,7 +146,8 @@ class Record {
          * Gets the query for create() operations.
          **/
         QueryBuilder _getQueryForCreate() {
-            InsertBuilder builder = cast(InsertBuilder)_queries["create"];
+            InsertBuilder builder = new InsertBuilder()
+                    .insert(_getColumns).into(_getTable);
 
             // Add column values to query.
             foreach(string name; _getColumns) {
@@ -164,7 +162,8 @@ class Record {
          * Gets the query for update() operations.
          **/
         QueryBuilder _getQueryForUpdate(string column = null) {
-            UpdateBuilder builder = cast(UpdateBuilder)_queries["update"];
+            UpdateBuilder builder = new UpdateBuilder()
+                    .update(_getTable).limit(1);
 
             if(column is null) {
                 // Set column values in query.
@@ -187,7 +186,8 @@ class Record {
          * Gets the query for remove() operations.
          **/
         QueryBuilder _getQueryForDelete() {
-            DeleteBuilder builder = cast(DeleteBuilder)_queries["remove"];
+            DeleteBuilder builder = new DeleteBuilder()
+                    .from(_getTable).limit(1);
 
             // Delete the record using the primary id.
             Variant id = _getColumnInfo(_idColumn).get(this);
@@ -334,18 +334,6 @@ mixin template ActiveRecord(T : Record) {
             throw new Exception(T.stringof ~
                     " defines no valid columns.");
         }
-
-        // Build default queries for record.
-        _queries["get"] = new SelectBuilder()
-                .select(_getColumns).from(_getTable);
-        _queries["find"] = new SelectBuilder()
-                .select(_getColumns).from(_getTable);
-        _queries["create"] = new InsertBuilder()
-                .insert(_getColumns).into(_getTable);
-        _queries["update"] = new UpdateBuilder()
-                .update(_getTable).limit(1);
-        _queries["remove"] = new DeleteBuilder()
-                .from(_getTable).limit(1);
     }
 
     /**
@@ -353,18 +341,18 @@ mixin template ActiveRecord(T : Record) {
      **/
     static T get(KT)(KT key) {
         // Get a database connection.
-        auto conn = _getDBConnection();
+        auto conn = _getDBConnection;
         auto command = Command(conn);
 
         // Prepare the get() query.
         auto instance = new T;
         auto query = instance._getQueryForGet(key);
-        command.sql = query.build();
-        command.prepare();
+        command.sql = query.build;
+        command.prepare;
 
         // Bind parameters and execute.
         command.bindParameters(query.getParameters);
-        auto result = command.execPreparedResult();
+        auto result = command.execPreparedResult;
 
         // Check that we got a result.
         if(result.empty) {
@@ -449,7 +437,17 @@ mixin template ActiveRecord(T : Record) {
                     T.stringof ~ " by create().");
         }
 
-        // TODO : Last insert id.
+        // Update auto increment columns.
+        auto info = _getColumnInfo(_idColumn);
+        if(info.autoIncrement) {
+            // Fetch the last insert id.
+            command.sql = SelectBuilder.lastInsertId.build;
+            command.prepare;
+
+            // Update the auto incremented column.
+            auto id = command.execPreparedResult;
+            info.set(this, id[0][0]);
+        }
     }
 
     /**
@@ -480,7 +478,7 @@ mixin template ActiveRecord(T : Record) {
     /**
      * Updates a single column in the database.
      **/
-    void update(string name) {
+    void save(string name) {
         // Get a database connection.
         auto conn = _getDBConnection;
         auto command = Command(conn);
@@ -497,8 +495,8 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that something was created.
         if(result < 1) {
-            throw new Exception("No record was created for " ~
-                    T.stringof ~ " by create().");
+            throw new Exception("No record was update for " ~
+                    T.stringof ~ " by save().");
         }
     }
 
