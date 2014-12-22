@@ -20,6 +20,38 @@ interface QueryBuilder {
 
 }
 
+class GenericQuery : QueryBuilder {
+
+    private {
+
+        string query;
+        Variant[] params;
+
+    }
+
+    /**
+     * Constructs a generic query from a query string and parameters.
+     **/
+    this(string query, Variant[] params = null...)
+    in {
+        if(query is null) {
+            throw new Exception("Query string cannot be null.");
+        }
+    } body {
+        this.query = query;
+        this.params = params;
+    }
+
+    Variant[] getParameters() {
+        return params;
+    }
+
+    string build() {
+        return query;
+    }
+
+}
+
 class WhereBuilder : QueryBuilder {
 
     private {
