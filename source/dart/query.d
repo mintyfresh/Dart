@@ -20,6 +20,96 @@ interface QueryBuilder {
 
 }
 
+class WhereBuilder : QueryBuilder {
+
+    private {
+
+        Appender!string query;
+
+        Variant[] params;
+
+    }
+
+    this() {
+        query = appender!string;
+    }
+
+    WhereBuilder and() {
+        query.put(" AND ");
+        return this;
+    }
+
+    WhereBuilder xor() {
+        query.put(" XOR ");
+        return this;
+    }
+
+    WhereBuilder or() {
+        query.put(" OR ");
+        return this;
+    }
+
+    WhereBuilder compare(VT)(string column, string operator, VT value)
+    in {
+        if(column is null || operator is null) {
+            throw new Exception("Column name and operator cannot be null.");
+        }
+    } body {
+        // Append the query segment.
+        formattedWrite(query, "`%s` %s ?", column, operator);
+
+        // Convert value to variant.
+        static if(is(VT == Variant)) {
+            params ~= value;
+        } else {
+            params ~= Variant(value);
+        }
+
+        return this;
+    }
+
+    WhereBuilder equals(VT)(string column, VT value) {
+        return compare(column, "=", value);
+    }
+
+    WhereBuilder notEquals(VT)(string column, VT value) {
+        return compare(column, "!=", value);
+    }
+
+    WhereBuilder like(VT)(string column, VT value) {
+        return compare(column, "LIKE", value);
+    }
+
+    WhereBuilder notLike(VT)(string column, VT value) {
+        return compare(column, "NOT LIKE", value);
+    }
+
+    WhereBuilder lessThan(VT)(string column, VT value) {
+        return compare(column, "<", value);
+    }
+
+    WhereBuilder greaterThan(VT)(string column, VT value) {
+        return compare(column, ">", value);
+    }
+
+    WhereBuilder lessOrEqual(VT)(string column, VT value) {
+        return compare(column, "<=", value);
+    }
+
+    WhereBuilder greaterOrEqual(VT)(string column, VT value) {
+        return compare(column, ">=", value);
+    }
+
+    Variant[] getParameters() {
+        return params;
+    }
+
+    string build() {
+        return query.data;
+    }
+
+}
+
 class SelectBuilder : QueryBuilder {
 
     private {
@@ -64,12 +154,12 @@ class SelectBuilder : QueryBuilder {
     }
 
     /**
-     * Sets the 'WHERE' clause in the query.
+     * Sets the select condition from a string.
      **/
     SelectBuilder where(VT)(string where, VT[] params...)
     in {
         if(where is null) {
-            throw new Exception("Where cannot be null.");
+            throw new Exception("Condition cannot be null.");
         }
     } body {
         // Assign query.
@@ -86,6 +176,22 @@ class SelectBuilder : QueryBuilder {
                 }
             }
         }
+
+        return this;
+    }
+
+    /**
+     * Sets the select condition from a where condition builder.
+     **/
+    SelectBuilder where(WhereBuilder where)
+    in {
+        if(where is null) {
+            throw new Exception("Condition cannot be null.");
+        }
+    } body {
+        // Store query information.
+        condition = where.build();
+        this.params = join([this.params, where.getParameters]);
 
         return this;
     }
@@ -280,7 +386,7 @@ class DeleteBuilder : QueryBuilder {
     DeleteBuilder where(VT)(string where, VT[] params...)
     in {
         if(where is null) {
-            throw new Exception("Where cannot be null.");
+            throw new Exception("Condition cannot be null.");
         }
     } body {
         // Assign query.
@@ -297,6 +403,22 @@ class DeleteBuilder : QueryBuilder {
                 }
             }
         }
+
+        return this;
+    }
+
+    /**
+     * Sets the select condition from a where condition builder.
+     **/
+    DeleteBuilder where(WhereBuilder where)
+    in {
+        if(where is null) {
+            throw new Exception("Condition cannot be null.");
+        }
+    } body {
+        // Store query information.
+        condition = where.build();
+        this.params = join([this.params, where.getParameters]);
 
         return this;
     }
@@ -416,7 +538,7 @@ class UpdateBuilder : QueryBuilder {
     UpdateBuilder where(VT)(string where, VT[] params...)
     in {
         if(where is null) {
-            throw new Exception("Where cannot be null.");
+            throw new Exception("Condition cannot be null.");
         }
     } body {
         // Assign query.
@@ -433,6 +555,22 @@ class UpdateBuilder : QueryBuilder {
                 }
             }
         }
+
+        return this;
+    }
+
+    /**
+     * Sets the select condition from a where condition builder.
+     **/
+    UpdateBuilder where(WhereBuilder where)
+    in {
+        if(where is null) {
+            throw new Exception("Condition cannot be null.");
+        }
+    } body {
+        // Store query information.
+        condition = where.build();
+        this.params = join([this.params, where.getParameters]);
 
         return this;
     }

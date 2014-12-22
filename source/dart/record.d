@@ -132,7 +132,7 @@ class Record {
          **/
         QueryBuilder _getQueryForGet(KT)(KT key) {
             SelectBuilder builder = cast(SelectBuilder)_queries["get"];
-            return builder.where("`" ~ _idColumn ~ "`=?", Variant(key));
+            return builder.where(new WhereBuilder().equals(_idColumn, key));
         }
 
         /**
@@ -180,7 +180,7 @@ class Record {
 
             // Update the record using the primary id.
             Variant id = _getColumnInfo(_idColumn).get(this);
-            return builder.where("`" ~ _idColumn ~ "`=?", id);
+            return builder.where(new WhereBuilder().equals(_idColumn, id));
         }
 
         /**
@@ -191,7 +191,7 @@ class Record {
 
             // Delete the record using the primary id.
             Variant id = _getColumnInfo(_idColumn).get(this);
-            return builder.where("`" ~ _idColumn ~ "`=?", id);
+            return builder.where(new WhereBuilder().equals(_idColumn, id));
         }
 
     }
