@@ -228,6 +228,7 @@ class SelectBuilder : QueryBuilder {
 
     private {
 
+        string command;
         string[] columns;
 
         string table;
@@ -237,6 +238,76 @@ class SelectBuilder : QueryBuilder {
 
         Variant[] params;
 
+    }
+
+    /**
+     * Creates a select query for the last insert id.
+     **/
+    static
+    SelectBuilder lastInsertId() {
+        return new SelectBuilder().selectFunc("LAST_INSERT_ID");
+    }
+
+    /**
+     * Prepares a select query with a function and parameters.
+     **/
+    SelectBuilder selectFunc(string command, string[] params = null...)
+    in {
+        if(command is null) {
+            throw new Exception("Command and column name cannot be null.");
+        }
+    } body {
+        this.command = command;
+        this.columns = params;
+        return this;
+    }
+
+    /**
+     * Prepares a select query for the average of a column.
+     **/
+    SelectBuilder selectAvg(string column)
+    in {
+        if(column is null) {
+            throw new Exception("Column name cannot be null.");
+        }
+    } body {
+        return selectFunc("AVG", column);
+    }
+
+    /**
+     * Prepares a select query for the max value of a column.
+     **/
+    SelectBuilder selectMax(string column)
+    in {
+        if(column is null) {
+            throw new Exception("Column name cannot be null.");
+        }
+    } body {
+        return selectFunc("MAX", column);
+    }
+
+    /**
+     * Prepares a select query for the min value of a column.
+     **/
+    SelectBuilder selectMin(string column)
+    in {
+        if(column is null) {
+            throw new Exception("Column name cannot be null.");
+        }
+    } body {
+        return selectFunc("MIN", column);
+    }
+
+    /**
+     * Prepares a select query for the sum of a column.
+     **/
+    SelectBuilder selectSum(string column)
+    in {
+        if(column is null) {
+            throw new Exception("Column name cannot be null.");
+        }
+    } body {
+        return selectFunc("SUM", column);
     }
 
     /**
@@ -332,7 +403,11 @@ class SelectBuilder : QueryBuilder {
 
         // Select.
         query.put("SELECT ");
-        if(columns !is null) {
+        if(command !is null) {
+            // Select function.
+            query.put(command);
+            formattedWrite(query, "(%-(%s%|, %))", columns);
+        } else if(columns !is null) {
             // Select specific columns.
             formattedWrite(query, "%-(`%s`%|, %)", columns);
         } else {
@@ -341,8 +416,10 @@ class SelectBuilder : QueryBuilder {
         }
 
         // From.
-        query.put(" FROM ");
-        query.put(table);
+        if(table !is null) {
+            query.put(" FROM ");
+            query.put(table);
+        }
 
         // Where.
         if(condition !is null) {
