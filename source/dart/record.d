@@ -12,30 +12,60 @@ public import mysql.db;
 
 public import dart.query;
 
-class ColumnInfo {
-
+/**
+ * Table annotation type.
+ * Optionally specifies the name of the table.
+ **/
+struct Table {
     string name;
-    string field;
-
-    bool isId = false;
-    bool notNull = true;
-    bool autoIncrement = false;
-
-    int maxLength = -1;
-
-    /**
-     * Gets the value of the field bound to this column.
-     **/
-    Variant delegate(Record) get;
-    /**
-    * Sets the value of the field bound to this column.
-    **/
-    void delegate(Record, Variant) set;
-
 }
 
+/**
+ * Column annotation type.
+ * Optionally specifies the name of the column.
+ **/
+struct Column {
+    string name;
+}
+
+/**
+ * MaxLength annotation type.
+ * Specifies the max length of a field.
+ *
+ * This annotation is only meaningful for types that have a length.
+ **/
+struct MaxLength {
+    int maxLength;
+}
+
+/**
+ * Id annotation type.
+ * Indicates that this column is the primary Id.
+ **/
+enum Id;
+
+/**
+ * Nullable annotation type.
+ * Indicates that this column may be null.
+ **/
+enum Nullable;
+
+/**
+ * AutoIncrement annotation type.
+ * Indicates that this column is auto incremented.
+ *
+ * This annotation is only meaningful for Id columns.
+ **/
+enum AutoIncrement;
+
+/**
+ * The record class type.
+ **/
 class Record {
 
+    /**
+     * Identifiers are prefixed with an underscore to prevent collisions.
+     **/
     protected static {
 
         /**
@@ -198,63 +228,9 @@ class Record {
 
 }
 
-alias Target(alias T) = T;
-
-struct Table {
-    string name;
-}
-
-struct Column {
-    string name;
-}
-
-struct MaxLength {
-    int maxLength;
-}
-
-enum Id;
-enum Nullable;
-enum AutoIncrement;
-
-static string getTableDefinition(T)() {
-    // Search for @Column annotation.
-    foreach(annotation; __traits(getAttributes, T)) {
-        // Check if @Table is present.
-        static if(is(annotation == Table)) {
-            return T.stringof;
-        }
-        // Check if @Table("name") is present.
-        static if(is(typeof(annotation) == Table)) {
-            return annotation.name;
-        }
-    }
-
-    // Not found.
-    return T.stringof;
-}
-
-static string getColumnDefinition(T, string member)() {
-    // Search for @Column annotation.
-    foreach(annotation; __traits(getAttributes,
-            __traits(getMember, T, member))) {
-        // Check is @Id is present (implicit column).
-        static if(is(annotation == Id)) {
-            return member;
-        }
-        // Check if @Column is present.
-        static if(is(annotation == Column)) {
-            return member;
-        }
-        // Check if @Column("name") is present.
-        static if(is(typeof(annotation) == Column)) {
-            return annotation.name;
-        }
-    }
-
-    // Not found.
-    return null;
-}
-
+/**
+ * The ActiveRecord mixin.
+ **/
 mixin template ActiveRecord(T : Record) {
 
     static this() {
@@ -525,4 +501,67 @@ mixin template ActiveRecord(T : Record) {
         }
     }
 
+}
+
+alias Target(alias T) = T;
+
+class ColumnInfo {
+
+    string name;
+    string field;
+
+    bool isId = false;
+    bool notNull = true;
+    bool autoIncrement = false;
+
+    int maxLength = -1;
+
+    /**
+    * Gets the value of the field bound to this column.
+    **/
+    Variant delegate(Record) get;
+    /**
+    * Sets the value of the field bound to this column.
+    **/
+    void delegate(Record, Variant) set;
+
+}
+
+static string getTableDefinition(T)() {
+    // Search for @Column annotation.
+    foreach(annotation; __traits(getAttributes, T)) {
+        // Check if @Table is present.
+        static if(is(annotation == Table)) {
+            return T.stringof;
+        }
+        // Check if @Table("name") is present.
+        static if(is(typeof(annotation) == Table)) {
+            return annotation.name;
+        }
+    }
+
+    // Not found.
+    return T.stringof;
+}
+
+static string getColumnDefinition(T, string member)() {
+    // Search for @Column annotation.
+    foreach(annotation; __traits(getAttributes,
+    __traits(getMember, T, member))) {
+        // Check is @Id is present (implicit column).
+        static if(is(annotation == Id)) {
+            return member;
+        }
+        // Check if @Column is present.
+        static if(is(annotation == Column)) {
+            return member;
+        }
+        // Check if @Column("name") is present.
+        static if(is(typeof(annotation) == Column)) {
+            return annotation.name;
+        }
+    }
+
+    // Not found.
+    return null;
 }
