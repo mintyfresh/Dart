@@ -654,10 +654,29 @@ class SelectBuilder : QueryBuilder {
 
     }
 
+    struct SelectUnion {
+
+        QueryBuilder subquery;
+        bool distinct;
+
+        bool hasValue() {
+            return subquery !is null;
+        }
+
+        string toString() {
+            auto query = appender!string;
+            query.put(distinct ? " DISTINCT " : " ALL ");
+            query.put(subquery.build);
+            return query.data;
+        }
+
+    }
+
     private {
 
         SelectFunction selectFunction;
         SelectColumns selectColumns;
+        SelectUnion selectUnion;
 
         Variant[] params;
 
@@ -763,6 +782,19 @@ class SelectBuilder : QueryBuilder {
         return this;
     }
 
+    /**
+     * Attaches an addition query to this one, through a union.
+     **/
+    SelectBuilder withUnion(QueryBuilder query, bool distinct = true)
+    in {
+        if(query is null) {
+            throw new Exception("Query cannot by null.");
+        }
+    } body {
+        selectUnion = SelectUnion(query, distinct);
+        return this;
+    }
+
     Variant[] getParameters() {
         return params;
     }
@@ -805,6 +837,12 @@ class SelectBuilder : QueryBuilder {
         if(hasLimit) {
             query.put(" LIMIT ");
             query.put(getLimitSegment);
+        }
+
+        // Union.
+        if(selectUnion.hasValue) {
+            query.put(" UNION ");
+            query.put(selectUnion.toString);
         }
 
         return query.data;
