@@ -62,8 +62,26 @@ class WhereBuilder : QueryBuilder {
 
     }
 
+    /**
+     * Constructs an empty where-clause builder.
+     **/
     this() {
         query = appender!string;
+    }
+
+    /**
+     * Constructs a where-clause builder from a query string
+     * and optionally a set of parameters.
+     **/
+    this(string query, Variant[] params = null...)
+    in {
+        if(query is null) {
+            throw new Exception("Query string cannot be null.");
+        }
+    } body {
+        this.query = appender!string;
+        this.query.put(query);
+        this.params = params;
     }
 
     /**
