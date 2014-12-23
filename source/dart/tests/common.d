@@ -95,4 +95,14 @@ unittest {
     record = records[0];
     record.remove;
 
+    // Check that the record doens't exist.
+    try {
+        record = TestRecord.get(record.id);
+
+        // Should not be reached.
+        assert(false);
+    } catch(RecordException e) {
+        // Success.
+    }
+
 }
