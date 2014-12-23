@@ -130,23 +130,30 @@ class Record {
         }
 
         /**
+         * Gets the name of the Id column.
+         **/
+        string getIdColumn() {
+            return _idColumn;
+        }
+
+        /**
          * Gets the name of the table for this record.
          **/
-        string _getTable() {
+        string getTableName() {
             return _table;
         }
 
         /**
          * Gets the column list for this record.
          **/
-        string[] _getColumns() {
+        string[] getColumnNames() {
             return _columns.keys;
         }
 
         /**
          * Gets the database connection.
          **/
-        Connection _getDBConnection() {
+        Connection getDBConnection() {
             // Mysql-native provides this.
             version(Have_vibe_d) {
                 if(_db !is null) {
@@ -167,7 +174,7 @@ class Record {
         /**
          * Sets the database connection.
          **/
-        void _setDBConnection(Connection conn) {
+        void setDBConnection(Connection conn) {
             _dbConnection = conn;
         }
 
@@ -176,7 +183,7 @@ class Record {
             /**
              * Sets the database connection.
              **/
-            void _setDBConnection(MysqlDB db) {
+            void setDBConnection(MysqlDB db) {
                 _db = db;
             }
         }
@@ -184,14 +191,14 @@ class Record {
         /**
          * Executes a query that produces a result set.
          **/
-        ResultSet _executeQueryResult(QueryBuilder query) {
+        ResultSet executeQueryResult(QueryBuilder query) {
             // Get a database connection.
-            auto conn = _getDBConnection();
+            auto conn = getDBConnection;
             auto command = Command(conn);
 
             // Prepare the query.
             command.sql = query.build;
-            command.prepare();
+            command.prepare;
 
             // Bind parameters and execute.
             command.bindParameters(query.getParameters);
@@ -201,15 +208,15 @@ class Record {
         /**
          * Executes a query that doesn't produce a result set.
          **/
-        ulong _executeQuery(QueryBuilder query) {
+        ulong executeQuery(QueryBuilder query) {
             // Get a database connection.
-            auto conn = _getDBConnection();
+            auto conn = getDBConnection;
             auto command = Command(conn);
             ulong result;
 
             // Prepare the query.
             command.sql = query.build;
-            command.prepare();
+            command.prepare;
 
             // Bind parameters and execute.
             command.bindParameters(query.getParameters);
@@ -223,10 +230,10 @@ class Record {
          *
          * Overriden by getQueryForGet().
          **/
-        QueryBuilder _getDefaultQueryForGet(KT)(KT key) {
+        QueryBuilder getDefaultQueryForGet(KT)(KT key) {
             SelectBuilder builder = new SelectBuilder()
-                    .select(_getColumns).from(_getTable).limit(1);
-            return builder.where(new WhereBuilder().equals(_idColumn, key));
+                    .select(getColumnNames).from(getTableName).limit(1);
+            return builder.where(new WhereBuilder().equals(getIdColumn, key));
         }
 
         /**
@@ -234,10 +241,10 @@ class Record {
          *
          * Overriden by getQueryForFind().
          **/
-        QueryBuilder _getDefaultQueryForFind(KT)(KT[string] conditions) {
+        QueryBuilder getDefaultQueryForFind(KT)(KT[string] conditions) {
             auto query = appender!string;
             SelectBuilder builder = new SelectBuilder()
-                    .select(_getColumns).from(_getTable);
+                    .select(getColumnNames).from(getTableName);
             formattedWrite(query, "%-(`%s`=?%| AND %)", conditions.keys);
             return builder.where(query.data, conditions.values);
         }
@@ -247,12 +254,12 @@ class Record {
          *
          * Overriden by getQueryForCreate().
          **/
-        QueryBuilder _getDefaultQueryForCreate(T)(T instance) {
+        QueryBuilder getDefaultQueryForCreate(T)(T instance) {
             InsertBuilder builder = new InsertBuilder()
-                    .insert(_getColumns).into(_getTable);
+                    .insert(getColumnNames).into(getTableName);
 
             // Add column values to query.
-            foreach(string name; _getColumns) {
+            foreach(string name; getColumnNames) {
                 auto info = _getColumnInfo(name);
                 builder.value(info.get(instance));
             }
@@ -265,15 +272,15 @@ class Record {
          *
          * Overriden by getQueryForSave().
          **/
-        QueryBuilder _getDefaultQueryForSave(T)(
+        QueryBuilder getDefaultQueryForSave(T)(
                 T instance, string[] columns = null...) {
             UpdateBuilder builder = new UpdateBuilder()
-                    .update(_getTable).limit(1);
+                    .update(getTableName).limit(1);
 
             // Check for a columns list.
             if(columns is null) {
                 // Include all columns.
-                columns = _getColumns;
+                columns = getColumnNames;
             }
 
             // Set column values in query.
@@ -283,8 +290,8 @@ class Record {
             }
 
             // Update the record using the primary id.
-            Variant id = _getColumnInfo(_idColumn).get(instance);
-            return builder.where(new WhereBuilder().equals(_idColumn, id));
+            Variant id = _getColumnInfo(getIdColumn).get(instance);
+            return builder.where(new WhereBuilder().equals(getIdColumn, id));
         }
 
         /**
@@ -292,13 +299,13 @@ class Record {
          *
          * Overriden by getQueryForRemove().
          **/
-        QueryBuilder _getDefaultQueryForRemove(T)(T instance) {
+        QueryBuilder getDefaultQueryForRemove(T)(T instance) {
             DeleteBuilder builder = new DeleteBuilder()
-                    .from(_getTable).limit(1);
+                    .from(getTableName).limit(1);
 
             // Delete the record using the primary id.
-            Variant id = _getColumnInfo(_idColumn).get(instance);
-            return builder.where(new WhereBuilder().equals(_idColumn, id));
+            Variant id = _getColumnInfo(getIdColumn).get(instance);
+            return builder.where(new WhereBuilder().equals(getIdColumn, id));
         }
 
     }
@@ -436,16 +443,16 @@ mixin template ActiveRecord(T : Record) {
         static if(__traits(hasMember, T, "getQueryForGet")) {
             auto query = getQueryForGet(key);
         } else {
-            auto query = _getDefaultQueryForGet(key);
+            auto query = getDefaultQueryForGet(key);
         }
 
         // Execute the get() query.
-        ResultSet result = _executeQueryResult(query);
+        ResultSet result = executeQueryResult(query);
 
         // Check that we got a result.
         if(result.empty) {
             throw new RecordException("No records found for " ~
-                    _getTable ~ " at " ~ to!string(key));
+                    getTableName ~ " at " ~ to!string(key));
         }
 
         T instance = new T;
@@ -453,7 +460,7 @@ mixin template ActiveRecord(T : Record) {
         // Bind column values to fields.
         foreach(int idx, string name; result.colNames) {
             auto value = row[idx];
-            _columns[name].set(instance, value);
+            _getColumnInfo(name).set(instance, value);
         }
 
         // Return the instance.
@@ -468,16 +475,16 @@ mixin template ActiveRecord(T : Record) {
         static if(__traits(hasMember, T, "getQueryForFind")) {
             auto query = getQueryForFind(conditions);
         } else {
-            auto query = _getDefaultQueryForFind(conditions);
+            auto query = getDefaultQueryForFind(conditions);
         }
 
         // Execute the find() query.
-        ResultSet result = _executeQueryResult(query);
+        ResultSet result = executeQueryResult(query);
 
         // Check that we got a result.
         if(result.empty) {
             throw new RecordException("No records found for " ~
-                    _getTable ~ " at " ~ to!string(conditions));
+                    getTableName ~ " at " ~ to!string(conditions));
         }
 
         T[] array;
@@ -488,7 +495,7 @@ mixin template ActiveRecord(T : Record) {
 
             foreach(int idx, string name; result.colNames) {
                 auto value = row[idx];
-                _columns[name].set(instance, value);
+                _getColumnInfo(name).set(instance, value);
             }
 
             // Append the object.
@@ -507,11 +514,11 @@ mixin template ActiveRecord(T : Record) {
         static if(__traits(hasMember, T, "getQueryForCreate")) {
             QueryBuilder query = getQueryForCreate(this);
         } else {
-            QueryBuilder query = _getDefaultQueryForCreate(this);
+            QueryBuilder query = getDefaultQueryForCreate(this);
         }
 
         // Execute the create() query.
-        ulong result = _executeQuery(query);
+        ulong result = executeQuery(query);
 
         // Check that something was created.
         if(result < 1) {
@@ -520,11 +527,11 @@ mixin template ActiveRecord(T : Record) {
         }
 
         // Update auto increment columns.
-        auto info = _getColumnInfo(_idColumn);
+        auto info = _getColumnInfo(getIdColumn);
         if(info.autoIncrement) {
             // Fetch the last insert id.
             query = SelectBuilder.lastInsertId;
-            ResultSet id = _executeQueryResult(query);
+            ResultSet id = executeQueryResult(query);
 
             // Update the auto incremented column.
             info.set(this, id[0][0]);
@@ -540,11 +547,11 @@ mixin template ActiveRecord(T : Record) {
         static if(__traits(hasMember, T, "getQueryForSave")) {
             auto query = getQueryForSave(this, names);
         } else {
-            auto query = _getDefaultQueryForSave(this, names);
+            auto query = getDefaultQueryForSave(this, names);
         }
 
         // Execute the save() query.
-        ulong result = _executeQuery(query);
+        ulong result = executeQuery(query);
 
         // Check that something was created.
         if(result < 1) {
@@ -561,11 +568,11 @@ mixin template ActiveRecord(T : Record) {
         static if(__traits(hasMember, T, "getQueryForRemove")) {
             auto query = getQueryForRemove(this);
         } else {
-            auto query = _getDefaultQueryForRemove(this);
+            auto query = getDefaultQueryForRemove(this);
         }
 
         // Execute the remove() query.
-        ulong result = _executeQuery(query);
+        ulong result = executeQuery(query);
 
         // Check that something was created.
         if(result < 1) {
