@@ -699,6 +699,32 @@ class SelectBuilder : QueryBuilder {
     }
 
     /**
+     * Stores a list of tables and a condition for a join operation.
+     **/
+    struct SelectJoin {
+
+        string[] joinTables;
+        string joinOn;
+
+        /**
+         * Checks if the select-join has a value.
+         **/
+        bool hasValue() {
+            return joinTables !is null &&
+                    !joinTables.empty;
+        }
+
+        string toString() {
+            auto query = appender!string;
+            formattedWrite(query, "(%-(`%s`%|, %))", joinTables);
+            if(joinOn !is null)
+                formattedWrite(query, " ON %s", joinOn);
+            return query.data;
+        }
+
+    }
+
+    /**
      * Stores a secondary query for a union operation.
      **/
     struct SelectUnion {
@@ -726,6 +752,8 @@ class SelectBuilder : QueryBuilder {
 
         SelectFunction selectFunction;
         SelectColumns selectColumns;
+
+        SelectJoin selectJoin;
         SelectUnion selectUnion;
 
         bool selectForUpdate;
@@ -835,6 +863,26 @@ class SelectBuilder : QueryBuilder {
     }
 
     /**
+     * Performs a left-join operation on a list of tables,
+     * with an optional join condition.
+     **/
+    SelectBuilder leftJoin(string[] tables, WhereBuilder condition = null)
+    in {
+        if(tables is null) {
+            throw new QueryException("Tables list cannot be null.");
+        }
+    } body {
+        if(condition is null) {
+            selectJoin = SelectJoin(tables);
+        } else {
+            selectJoin = SelectJoin(tables, condition.build);
+            params = join([params, condition.getParameters]);
+        }
+
+        return this;
+    }
+
+    /**
      * Attaches an addition query to this one, through a union.
      **/
     SelectBuilder withUnion(QueryBuilder query, bool distinct = true)
@@ -899,6 +947,12 @@ class SelectBuilder : QueryBuilder {
         // For Update.
         if(selectForUpdate) {
             query.put(" FOR UPDATE");
+        }
+
+        // Join.
+        if(selectJoin.hasValue) {
+            query.put(" LEFT JOIN ");
+            query.put(selectJoin.toString);
         }
 
         // Union.
