@@ -269,10 +269,22 @@ mixin template ActiveRecord(T : Record) {
                                     }
                                 }
 
-                                return Variant(__traits(getMember, cast(T)(local), member));
+                                // Convert value to variant.
+                                static if(is(typeof(current) == Variant)) {
+                                    return __traits(getMember, cast(T)(local), member);
+                                } else {
+                                    return Variant(__traits(getMember, cast(T)(local), member));
+                                }
                         };
                         info.set = delegate(Record local, Variant v) {
-                                __traits(getMember, cast(T)(local), member) = v.coerce!(typeof(current));
+                                // Convert value from variant.
+                                static if(is(typeof(current) == Variant)) {
+                                    auto value = v;
+                                } else {
+                                    auto value = v.coerce!(typeof(current));
+                                }
+
+                                __traits(getMember, cast(T)(local), member) = value;
                         };
 
                         // Populate other fields.
