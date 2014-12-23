@@ -20,6 +20,20 @@ interface QueryBuilder {
 
 }
 
+/**
+ * Exception type produced by query operations.
+ **/
+class QueryException : Exception {
+
+    /**
+     * Constructs a query exception with an error message.
+     **/
+    this(string message) {
+        super(message);
+    }
+
+}
+
 class GenericQuery : QueryBuilder {
 
     private {
@@ -35,7 +49,7 @@ class GenericQuery : QueryBuilder {
     this(string query, Variant[] params = null...)
     in {
         if(query is null) {
-            throw new Exception("Query string cannot be null.");
+            throw new QueryException("Query string cannot be null.");
         }
     } body {
         this.query = query;
@@ -76,7 +90,7 @@ class WhereBuilder : QueryBuilder {
     this(string query, Variant[] params = null...)
     in {
         if(query is null) {
-            throw new Exception("Query string cannot be null.");
+            throw new QueryException("Query string cannot be null.");
         }
     } body {
         this.query = appender!string;
@@ -131,7 +145,7 @@ class WhereBuilder : QueryBuilder {
     WhereBuilder compare(VT)(string column, string operator, VT value)
     in {
         if(column is null || operator is null) {
-            throw new Exception("Column name and operator cannot be null.");
+            throw new QueryException("Column name and operator cannot be null.");
         }
     } body {
         // Append the query segment.
@@ -153,7 +167,7 @@ class WhereBuilder : QueryBuilder {
     WhereBuilder isNull(string column)
     in {
         if(column is null) {
-            throw new Exception("Column name cannot be null.");
+            throw new QueryException("Column name cannot be null.");
         }
     } body {
         // Append the query segment.
@@ -168,7 +182,7 @@ class WhereBuilder : QueryBuilder {
     WhereBuilder isNotNull(string column)
     in {
         if(column is null) {
-            throw new Exception("Column name cannot be null.");
+            throw new QueryException("Column name cannot be null.");
         }
     } body {
         // Append the query segment.
@@ -238,7 +252,7 @@ class WhereBuilder : QueryBuilder {
     WhereBuilder whereIn(VT)(string column, VT[] values...)
     in {
         if(column is null || values is null) {
-            throw new Exception("Column name and values cannot be null.");
+            throw new QueryException("Column name and values cannot be null.");
         }
     } body {
         // Build the where-in clause.
@@ -267,7 +281,7 @@ class WhereBuilder : QueryBuilder {
     WhereBuilder whereIn(string column, SelectBuilder select)
     in {
         if(column is null || select is null) {
-            throw new Exception("Column name and values cannot be null.");
+            throw new QueryException("Column name and values cannot be null.");
         }
     } body {
         // Build the where-in clause.
@@ -284,7 +298,7 @@ class WhereBuilder : QueryBuilder {
     WhereBuilder whereNotIn(VT)(string column, VT[] values...)
     in {
         if(column is null || values is null) {
-            throw new Exception("Column name and values cannot be null.");
+            throw new QueryException("Column name and values cannot be null.");
         }
     } body {
         // Build the where-in clause.
@@ -313,7 +327,7 @@ class WhereBuilder : QueryBuilder {
     WhereBuilder whereNotIn(string column, SelectBuilder select)
     in {
         if(column is null || select is null) {
-            throw new Exception("Column name and values cannot be null.");
+            throw new QueryException("Column name and values cannot be null.");
         }
     } body {
         // Build the where-in clause.
@@ -348,7 +362,7 @@ mixin template FromFunctions(T : QueryBuilder) {
     T from(string table)
     in {
         if(table is null) {
-            throw new Exception("Table cannot be null.");
+            throw new QueryException("Table cannot be null.");
         }
     } body {
         fromTable = table;
@@ -358,7 +372,7 @@ mixin template FromFunctions(T : QueryBuilder) {
     T from(SelectBuilder query, string asName)
     in {
         if(query is null || asName is null) {
-            throw new Exception("Query and name cannot be null.");
+            throw new QueryException("Query and name cannot be null.");
         }
     } body {
         fromQuery = query;
@@ -411,7 +425,7 @@ mixin template WhereFunctions(T : QueryBuilder) {
     T where(VT)(string where, VT[] params...)
     in {
         if(where is null) {
-            throw new Exception("Condition cannot be null.");
+            throw new QueryException("Condition cannot be null.");
         }
     } body {
         // Assign query.
@@ -438,7 +452,7 @@ mixin template WhereFunctions(T : QueryBuilder) {
     T where(WhereBuilder where)
     in {
         if(where is null) {
-            throw new Exception("Condition cannot be null.");
+            throw new QueryException("Condition cannot be null.");
         }
     } body {
         // Store query information.
@@ -503,7 +517,7 @@ mixin template OrderByFunctions(T : QueryBuilder) {
     T orderBy(string column, string direction = null)
     in {
         if(column is null) {
-            throw new Exception("Column name cannot be null.");
+            throw new QueryException("Column name cannot be null.");
         }
     } body {
         // Save the Order-By specifier.
@@ -519,7 +533,7 @@ mixin template OrderByFunctions(T : QueryBuilder) {
     T orderBy(string[] columns...)
     in {
         if(columns is null) {
-            throw new Exception("Columns list cannot be null.");
+            throw new QueryException("Columns list cannot be null.");
         }
     } body {
         // Add the columns to the list.
@@ -537,7 +551,7 @@ mixin template OrderByFunctions(T : QueryBuilder) {
     T orderBy(OrderByInfo[] columns...)
     in {
         if(columns is null) {
-            throw new Exception("Columns list cannot be null.");
+            throw new QueryException("Columns list cannot be null.");
         }
     } body {
         // Append the list of specifiers.
@@ -584,7 +598,7 @@ mixin template LimitFunctions(T : QueryBuilder) {
     T limit(int count)
     in {
         if(count < 0) {
-            throw new Exception("Limit cannot be negative.");
+            throw new QueryException("Limit cannot be negative.");
         }
     } body {
         this.count = count;
@@ -713,7 +727,7 @@ class SelectBuilder : QueryBuilder {
     SelectBuilder selectFunc(string name, string[] params = null...)
     in {
         if(name is null) {
-            throw new Exception("Function name cannot be null.");
+            throw new QueryException("Function name cannot be null.");
         }
     } body {
         selectFunction = SelectFunction(name, params);
@@ -726,7 +740,7 @@ class SelectBuilder : QueryBuilder {
     SelectBuilder selectAvg(string column)
     in {
         if(column is null) {
-            throw new Exception("Column name cannot be null.");
+            throw new QueryException("Column name cannot be null.");
         }
     } body {
         return selectFunc("AVG", column);
@@ -738,7 +752,7 @@ class SelectBuilder : QueryBuilder {
     SelectBuilder selectMax(string column)
     in {
         if(column is null) {
-            throw new Exception("Column name cannot be null.");
+            throw new QueryException("Column name cannot be null.");
         }
     } body {
         return selectFunc("MAX", column);
@@ -750,7 +764,7 @@ class SelectBuilder : QueryBuilder {
     SelectBuilder selectMin(string column)
     in {
         if(column is null) {
-            throw new Exception("Column name cannot be null.");
+            throw new QueryException("Column name cannot be null.");
         }
     } body {
         return selectFunc("MIN", column);
@@ -762,7 +776,7 @@ class SelectBuilder : QueryBuilder {
     SelectBuilder selectSum(string column)
     in {
         if(column is null) {
-            throw new Exception("Column name cannot be null.");
+            throw new QueryException("Column name cannot be null.");
         }
     } body {
         return selectFunc("SUM", column);
@@ -775,7 +789,7 @@ class SelectBuilder : QueryBuilder {
     in {
         // Check that the columns list isn't null.
         if(columns is null) {
-            throw new Exception("Columns list cannot be null.");
+            throw new QueryException("Columns list cannot be null.");
         }
     } body {
         selectColumns = SelectColumns(columns);
@@ -788,7 +802,7 @@ class SelectBuilder : QueryBuilder {
     SelectBuilder withUnion(QueryBuilder query, bool distinct = true)
     in {
         if(query is null) {
-            throw new Exception("Query cannot by null.");
+            throw new QueryException("Query cannot by null.");
         }
     } body {
         selectUnion = SelectUnion(query, distinct);
@@ -875,7 +889,7 @@ class InsertBuilder : QueryBuilder {
     InsertBuilder into(string table)
     in {
         if(table is null) {
-            throw new Exception("Table cannot be null.");
+            throw new QueryException("Table cannot be null.");
         }
     } body {
         this.table = table;
@@ -908,7 +922,7 @@ class InsertBuilder : QueryBuilder {
     InsertBuilder values(VT)(VT[] values...)
     in {
         if(values is null) {
-            throw new Exception("Values cannot be null.");
+            throw new QueryException("Values cannot be null.");
         }
     } body {
         // Query parameters.
@@ -1053,7 +1067,7 @@ class UpdateBuilder : QueryBuilder {
     UpdateBuilder update(string table)
     in {
         if(table is null) {
-            throw new Exception("Table cannot be null.");
+            throw new QueryException("Table cannot be null.");
         }
     } body {
         this.table = table;
@@ -1066,7 +1080,7 @@ class UpdateBuilder : QueryBuilder {
     UpdateBuilder set(VT)(string name, VT value)
     in {
         if(name is null) {
-            throw new Exception("Column name cannot be null.");
+            throw new QueryException("Column name cannot be null.");
         }
     } body {
         columns ~= name;
@@ -1080,7 +1094,7 @@ class UpdateBuilder : QueryBuilder {
     UpdateBuilder set(VT)(VT[string] values...)
     in {
         if(name is null) {
-            throw new Exception("Values cannot be null.");
+            throw new QueryException("Values cannot be null.");
         }
     } body {
         // Add the values.
