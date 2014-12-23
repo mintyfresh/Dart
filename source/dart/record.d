@@ -81,7 +81,7 @@ class Record {
     /**
      * Identifiers are prefixed with an underscore to prevent collisions.
      **/
-    protected static {
+    private static {
 
         /**
          * The name of the corresponding table.
@@ -110,6 +110,10 @@ class Record {
              **/
             MysqlDB _db;
         }
+
+    }
+
+    protected static {
 
         /**
          * Gets a column definition, by name.
