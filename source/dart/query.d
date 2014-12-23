@@ -728,6 +728,8 @@ class SelectBuilder : QueryBuilder {
         SelectColumns selectColumns;
         SelectUnion selectUnion;
 
+        bool selectForUpdate;
+
         Variant[] params;
 
     }
@@ -845,6 +847,11 @@ class SelectBuilder : QueryBuilder {
         return this;
     }
 
+    SelectBuilder forUpdate() {
+        selectForUpdate = true;
+        return this;
+    }
+
     Variant[] getParameters() {
         return params;
     }
@@ -887,6 +894,11 @@ class SelectBuilder : QueryBuilder {
         if(hasLimit) {
             query.put(" LIMIT ");
             query.put(getLimitSegment);
+        }
+
+        // For Update.
+        if(selectForUpdate) {
+            query.put(" FOR UPDATE");
         }
 
         // Union.
