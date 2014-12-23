@@ -149,14 +149,12 @@ class Record {
             _db = db;
         }
 
-    }
-
-    protected {
-
         /**
          * Gets the query for get() operations.
+         *
+         * Overriden by _getQueryForGet().
          **/
-        QueryBuilder _getQueryForGet(KT)(KT key) {
+        QueryBuilder _getDefaultQueryForGet(KT)(KT key) {
             SelectBuilder builder = new SelectBuilder()
                     .select(_getColumns).from(_getTable).limit(1);
             return builder.where(new WhereBuilder().equals(_idColumn, key));
@@ -164,8 +162,10 @@ class Record {
 
         /**
          * Gets the query for find() operations.
+         *
+         * Overriden by _getQueryForFind().
          **/
-        QueryBuilder _getQueryForFind(KT)(KT[string] conditions) {
+        QueryBuilder _getDefaultQueryForFind(KT)(KT[string] conditions) {
             auto query = appender!string;
             SelectBuilder builder = new SelectBuilder()
                     .select(_getColumns).from(_getTable);
@@ -175,15 +175,17 @@ class Record {
 
         /**
          * Gets the query for create() operations.
+         *
+         * Overriden by _getQueryForCreate().
          **/
-        QueryBuilder _getQueryForCreate() {
+        QueryBuilder _getDefaultQueryForCreate(T)(T instance) {
             InsertBuilder builder = new InsertBuilder()
                     .insert(_getColumns).into(_getTable);
 
             // Add column values to query.
             foreach(string name; _getColumns) {
                 auto info = _getColumnInfo(name);
-                builder.value(info.get(this));
+                builder.value(info.get(instance));
             }
 
             return builder;
@@ -191,8 +193,11 @@ class Record {
 
         /**
          * Gets the query for update() operations.
+         *
+         * Overriden by _getQueryForSave().
          **/
-        QueryBuilder _getQueryForUpdate(string column = null) {
+        QueryBuilder _getDefaultQueryForSave(T)(
+                T instance, string column = null) {
             UpdateBuilder builder = new UpdateBuilder()
                     .update(_getTable).limit(1);
 
@@ -200,28 +205,30 @@ class Record {
                 // Set column values in query.
                 foreach(string name; _getColumns) {
                     auto info = _getColumnInfo(name);
-                    builder.set(info.name, info.get(this));
+                    builder.set(info.name, info.get(instance));
                 }
             } else {
                 // Set a single column value.
                 auto info = _getColumnInfo(column);
-                builder.set(info.name, info.get(this));
+                builder.set(info.name, info.get(instance));
             }
 
             // Update the record using the primary id.
-            Variant id = _getColumnInfo(_idColumn).get(this);
+            Variant id = _getColumnInfo(_idColumn).get(instance);
             return builder.where(new WhereBuilder().equals(_idColumn, id));
         }
 
         /**
          * Gets the query for remove() operations.
+         *
+         * Overriden by _getQueryForRemove().
          **/
-        QueryBuilder _getQueryForDelete() {
+        QueryBuilder _getDefaultQueryForRemove(T)(T instance) {
             DeleteBuilder builder = new DeleteBuilder()
                     .from(_getTable).limit(1);
 
             // Delete the record using the primary id.
-            Variant id = _getColumnInfo(_idColumn).get(this);
+            Variant id = _getColumnInfo(_idColumn).get(instance);
             return builder.where(new WhereBuilder().equals(_idColumn, id));
         }
 
@@ -249,13 +256,14 @@ mixin template ActiveRecord(T : Record) {
                 alias current = Target!(__traits(getMember, T, member));
 
                 // Check if this is a column.
-                static if(!((is(typeof(current) == function)) ||
-                        member == "get" || member == "find")) {
-                    // Find a column name.
-                    string name = getColumnDefinition!(T, member);
+                static if(isColumn!(T, member)) {
+                    // Ensure that this isn't a function.
+                    static if(is(typeof(current) == function)) {
+                        throw new Exception("Functions as columns is unsupported.");
+                    } else {
+                        // Find the column name.
+                        string name = getColumnDefinition!(T, member);
 
-                    // Check if the definition exists.
-                    if(name !is null) {
                         // Create a column info record.
                         auto info = new ColumnInfo();
                         info.field = member;
@@ -347,9 +355,14 @@ mixin template ActiveRecord(T : Record) {
         auto conn = _getDBConnection;
         auto command = Command(conn);
 
+        // Check for a query-producer override.
+        static if(__traits(hasMember, T, "_getQueryForGet")) {
+            auto query = _getQueryForGet(key);
+        } else {
+            auto query = _getDefaultQueryForGet(key);
+        }
+
         // Prepare the get() query.
-        auto instance = new T;
-        auto query = instance._getQueryForGet(key);
         command.sql = query.build;
         command.prepare;
 
@@ -363,8 +376,9 @@ mixin template ActiveRecord(T : Record) {
                     _getTable ~ " at " ~ to!string(key));
         }
 
-        // Bind column values to fields.
+        T instance = new T;
         auto row = result[0];
+        // Bind column values to fields.
         foreach(int idx, string name; result.colNames) {
             auto value = row[idx];
             _columns[name].set(instance, value);
@@ -382,9 +396,14 @@ mixin template ActiveRecord(T : Record) {
         auto conn = _getDBConnection();
         auto command = Command(conn);
 
+        // Check for a query-producer override.
+        static if(__traits(hasMember, T, "_getQueryForFind")) {
+            auto query = _getQueryForFind(conditions);
+        } else {
+            auto query = _getDefaultQueryForFind(conditions);
+        }
+
         // Prepare the find() query.
-        auto instance = new T;
-        auto query = instance._getQueryForFind(conditions);
         command.sql = query.build();
         command.prepare();
 
@@ -401,15 +420,16 @@ mixin template ActiveRecord(T : Record) {
         T[] array;
         // Create the initial array of elements.
         for(int i = 0; i < result.length; i++) {
+            T instance = new T;
             auto row = result[i];
+
             foreach(int idx, string name; result.colNames) {
                 auto value = row[idx];
                 _columns[name].set(instance, value);
             }
 
-            // Append the object and create a new one.
+            // Append the object.
             array ~= instance;
-            instance = new T;
         }
 
         // Return the array.
@@ -425,8 +445,14 @@ mixin template ActiveRecord(T : Record) {
         auto command = Command(conn);
         ulong result;
 
+        // Check for a query-producer override.
+        static if(__traits(hasMember, T, "_getQueryForCreate")) {
+            auto query = _getQueryForCreate(this);
+        } else {
+            auto query = _getDefaultQueryForCreate(this);
+        }
+
         // Prepare the create() query.
-        auto query = _getQueryForCreate;
         command.sql = query.build;
         command.prepare;
 
@@ -462,8 +488,14 @@ mixin template ActiveRecord(T : Record) {
         auto command = Command(conn);
         ulong result;
 
-        // Prepare the create() query.
-        auto query = _getQueryForUpdate;
+        // Check for a query-producer override.
+        static if(__traits(hasMember, T, "_getQueryForSave")) {
+            auto query = _getQueryForSave(this);
+        } else {
+            auto query = _getDefaultQueryForSave(this);
+        }
+
+        // Prepare the save() query.
         command.sql = query.build;
         command.prepare;
 
@@ -487,8 +519,14 @@ mixin template ActiveRecord(T : Record) {
         auto command = Command(conn);
         ulong result;
 
-        // Prepare the create() query.
-        auto query = _getQueryForUpdate(name);
+        // Check for a query-producer override.
+        static if(__traits(hasMember, T, "_getQueryForSave")) {
+            auto query = _getQueryForSave(this, name);
+        } else {
+            auto query = _getDefaultQueryForSave(this, name);
+        }
+
+        // Prepare the save() query.
         command.sql = query.build;
         command.prepare;
 
@@ -512,8 +550,14 @@ mixin template ActiveRecord(T : Record) {
         auto command = Command(conn);
         ulong result;
 
-        // Prepare the create() query.
-        auto query = _getQueryForDelete;
+        // Check for a query-producer override.
+        static if(__traits(hasMember, T, "_getQueryForRemove")) {
+            auto query = _getQueryForRemove(this);
+        } else {
+            auto query = _getDefaultQueryForRemove(this);
+        }
+
+        // Prepare the remove() query.
         command.sql = query.build;
         command.prepare;
 
@@ -575,12 +619,37 @@ static string getTableDefinition(T)() {
 }
 
 /**
- * Checks if a field is a column, and returns the column name.
+ * Compile-time helper for finding columns.
+ **/
+static bool isColumn(T, string member)() {
+    // Search for @Column annotation.
+    foreach(annotation; __traits(getAttributes,
+    __traits(getMember, T, member))) {
+        // Check is @Id is present (implicit column).
+        static if(is(annotation == Id)) {
+            return true;
+        }
+        // Check if @Column is present.
+        static if(is(annotation == Column)) {
+            return true;
+        }
+        // Check if @Column("name") is present.
+        static if(is(typeof(annotation) == Column)) {
+            return true;
+        }
+    }
+
+    // Not found.
+    return false;
+}
+
+/**
+ * Determines the name of a column field.
  **/
 static string getColumnDefinition(T, string member)() {
     // Search for @Column annotation.
     foreach(annotation; __traits(getAttributes,
-    __traits(getMember, T, member))) {
+            __traits(getMember, T, member))) {
         // Check is @Id is present (implicit column).
         static if(is(annotation == Id)) {
             return member;
@@ -596,5 +665,5 @@ static string getColumnDefinition(T, string member)() {
     }
 
     // Not found.
-    return null;
+    return member;
 }
