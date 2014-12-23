@@ -238,6 +238,10 @@ mixin template ActiveRecord(T : Record) {
         // Check if the class defined an override name.
         _table = getTableDefinition!(T);
 
+        if(_table is null) {
+            throw new Exception(T.stringof ~ " isn't bound to a table.");
+        }
+
         int colCount = 0;
         // Search through class members.
         foreach(member; __traits(derivedMembers, T)) {
@@ -550,6 +554,9 @@ class ColumnInfo {
 
 }
 
+/**
+ * Checks if a type is a table, and returns the table name.
+ **/
 static string getTableDefinition(T)() {
     // Search for @Column annotation.
     foreach(annotation; __traits(getAttributes, T)) {
@@ -564,9 +571,12 @@ static string getTableDefinition(T)() {
     }
 
     // Not found.
-    return T.stringof;
+    return null;
 }
 
+/**
+ * Checks if a field is a column, and returns the column name.
+ **/
 static string getColumnDefinition(T, string member)() {
     // Search for @Column annotation.
     foreach(annotation; __traits(getAttributes,
