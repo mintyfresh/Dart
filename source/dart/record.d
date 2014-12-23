@@ -262,19 +262,19 @@ class Record {
          * Overriden by _getQueryForSave().
          **/
         QueryBuilder _getDefaultQueryForSave(T)(
-                T instance, string column = null) {
+                T instance, string[] columns = null...) {
             UpdateBuilder builder = new UpdateBuilder()
                     .update(_getTable).limit(1);
 
-            if(column is null) {
-                // Set column values in query.
-                foreach(string name; _getColumns) {
-                    auto info = _getColumnInfo(name);
-                    builder.set(info.name, info.get(instance));
-                }
-            } else {
-                // Set a single column value.
-                auto info = _getColumnInfo(column);
+            // Check for a columns list.
+            if(columns is null) {
+                // Include all columns.
+                columns = _getColumns;
+            }
+
+            // Set column values in query.
+            foreach(string name; columns) {
+                auto info = _getColumnInfo(name);
                 builder.set(info.name, info.get(instance));
             }
 
@@ -440,7 +440,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that we got a result.
         if(result.empty) {
-            throw new RecordException("No records for for " ~
+            throw new RecordException("No records found for " ~
                     _getTable ~ " at " ~ to!string(key));
         }
 
@@ -472,7 +472,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that we got a result.
         if(result.empty) {
-            throw new RecordException("No records for for " ~
+            throw new RecordException("No records found for " ~
                     _getTable ~ " at " ~ to!string(conditions));
         }
 
@@ -511,7 +511,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that something was created.
         if(result < 1) {
-            throw new RecordException("No record was created for " ~
+            throw new RecordException("No records were created for " ~
                     T.stringof ~ " by create().");
         }
 
@@ -528,14 +528,15 @@ mixin template ActiveRecord(T : Record) {
     }
 
     /**
-     * Saves this object in the database, if it already exists.
+     * Saves this object to the database, if it already exists.
+     * Optionally specifies a list of columns to be updated.
      **/
-    void save() {
+    void save(string[] names = null...) {
         // Check for a query-producer override.
         static if(__traits(hasMember, T, "_getQueryForSave")) {
-            auto query = _getQueryForSave(this);
+            auto query = _getQueryForSave(this, names);
         } else {
-            auto query = _getDefaultQueryForSave(this);
+            auto query = _getDefaultQueryForSave(this, names);
         }
 
         // Execute the save() query.
@@ -543,28 +544,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that something was created.
         if(result < 1) {
-            throw new RecordException("No record was updated for " ~
-                    T.stringof ~ " by save().");
-        }
-    }
-
-    /**
-     * Updates a single column in the database.
-     **/
-    void save(string name) {
-        // Check for a query-producer override.
-        static if(__traits(hasMember, T, "_getQueryForSave")) {
-            auto query = _getQueryForSave(this, name);
-        } else {
-            auto query = _getDefaultQueryForSave(this, name);
-        }
-
-        // Execute the save() query.
-        ulong result = _executeQuery(query);
-
-        // Check that something was created.
-        if(result < 1) {
-            throw new RecordException("No record was update for " ~
+            throw new RecordException("No records were updated for " ~
                     T.stringof ~ " by save().");
         }
     }
@@ -585,7 +565,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that something was created.
         if(result < 1) {
-            throw new RecordException("No record was removed for " ~
+            throw new RecordException("No records were removed for " ~
                     T.stringof ~ " by remove().");
         }
     }
