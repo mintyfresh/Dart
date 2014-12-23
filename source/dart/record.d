@@ -221,7 +221,7 @@ class Record {
         /**
          * Gets the query for get() operations.
          *
-         * Overriden by _getQueryForGet().
+         * Overriden by getQueryForGet().
          **/
         QueryBuilder _getDefaultQueryForGet(KT)(KT key) {
             SelectBuilder builder = new SelectBuilder()
@@ -232,7 +232,7 @@ class Record {
         /**
          * Gets the query for find() operations.
          *
-         * Overriden by _getQueryForFind().
+         * Overriden by getQueryForFind().
          **/
         QueryBuilder _getDefaultQueryForFind(KT)(KT[string] conditions) {
             auto query = appender!string;
@@ -245,7 +245,7 @@ class Record {
         /**
          * Gets the query for create() operations.
          *
-         * Overriden by _getQueryForCreate().
+         * Overriden by getQueryForCreate().
          **/
         QueryBuilder _getDefaultQueryForCreate(T)(T instance) {
             InsertBuilder builder = new InsertBuilder()
@@ -263,7 +263,7 @@ class Record {
         /**
          * Gets the query for update() operations.
          *
-         * Overriden by _getQueryForSave().
+         * Overriden by getQueryForSave().
          **/
         QueryBuilder _getDefaultQueryForSave(T)(
                 T instance, string[] columns = null...) {
@@ -290,7 +290,7 @@ class Record {
         /**
          * Gets the query for remove() operations.
          *
-         * Overriden by _getQueryForRemove().
+         * Overriden by getQueryForRemove().
          **/
         QueryBuilder _getDefaultQueryForRemove(T)(T instance) {
             DeleteBuilder builder = new DeleteBuilder()
@@ -418,7 +418,7 @@ mixin template ActiveRecord(T : Record) {
         // Check is we have an Id.
         if(_idColumn is null) {
             throw new RecordException(T.stringof ~
-                    " doesn't defined an Id column.");
+                    " doesn't define an Id column.");
         }
 
         // Check if we have any columns.
