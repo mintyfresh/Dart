@@ -151,6 +151,16 @@ class Record {
         }
 
         /**
+         * Gets a list of column values, for this instance.
+         **/
+        Variant[] getColumnValues(T)(T instance) {
+            Variant[] values;
+            foreach(name, info; _columns)
+                values ~= info.get(instance);
+            return values;
+        }
+
+        /**
          * Gets the database connection.
          **/
         Connection getDBConnection() {
