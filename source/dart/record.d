@@ -635,10 +635,6 @@ static string getColumnDefinition(T, string member)() {
     // Search for @Column annotation.
     foreach(annotation; __traits(getAttributes,
             __traits(getMember, T, member))) {
-        // Check is @Id is present (implicit column).
-        static if(is(annotation == Id)) {
-            return member;
-        }
         // Check if @Column is present.
         static if(is(annotation == Column)) {
             return member;
