@@ -60,6 +60,20 @@ enum Nullable;
 enum AutoIncrement;
 
 /**
+ * Exception type produced by record operations.
+ **/
+class RecordException : Exception {
+
+    /**
+     * Constructs a record exception with an error message.
+     **/
+    this(string message) {
+        super(message);
+    }
+
+}
+
+/**
  * The record class type.
  **/
 class Record {
@@ -131,7 +145,7 @@ class Record {
             } else if(_dbConnection !is null) {
                 return _dbConnection;
             } else {
-                throw new Exception("Record has no database connection.");
+                throw new RecordException("Record has no database connection.");
             }
         }
 
@@ -246,7 +260,7 @@ mixin template ActiveRecord(T : Record) {
         _table = getTableDefinition!(T);
 
         if(_table is null) {
-            throw new Exception(T.stringof ~ " isn't bound to a table.");
+            throw new RecordException(T.stringof ~ " isn't bound to a table.");
         }
 
         int colCount = 0;
@@ -259,7 +273,7 @@ mixin template ActiveRecord(T : Record) {
                 static if(isColumn!(T, member)) {
                     // Ensure that this isn't a function.
                     static if(is(typeof(current) == function)) {
-                        throw new Exception("Functions as columns is unsupported.");
+                        throw new RecordException("Functions as columns is unsupported.");
                     } else {
                         // Find the column name.
                         string name = getColumnDefinition!(T, member);
@@ -277,7 +291,8 @@ mixin template ActiveRecord(T : Record) {
                                     // Check that length doesn't exceed max.
                                     if(info.maxLength != -1 && __traits(getMember,
                                             cast(T)(local), member).length > info.maxLength) {
-                                        throw new Exception("Value of " ~ member ~ " exceeds max length.");
+                                        throw new RecordException("Value of " ~
+                                                member ~ " exceeds max length.");
                                     }
                                 }
 
@@ -304,7 +319,7 @@ mixin template ActiveRecord(T : Record) {
                             // Check is @Id is present.
                             static if(is(annotation == Id)) {
                                 if(_idColumn !is null) {
-                                    throw new Exception(T.stringof ~
+                                    throw new RecordException(T.stringof ~
                                             " already defined an Id column.");
                                 }
 
@@ -336,13 +351,13 @@ mixin template ActiveRecord(T : Record) {
 
         // Check is we have an Id.
         if(_idColumn is null) {
-            throw new Exception(T.stringof ~
+            throw new RecordException(T.stringof ~
                     " doesn't defined an Id column.");
         }
 
         // Check if we have any columns.
         if(colCount == 0) {
-            throw new Exception(T.stringof ~
+            throw new RecordException(T.stringof ~
                     " defines no valid columns.");
         }
     }
@@ -372,7 +387,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that we got a result.
         if(result.empty) {
-            throw new Exception("No records for for " ~
+            throw new RecordException("No records for for " ~
                     _getTable ~ " at " ~ to!string(key));
         }
 
@@ -413,7 +428,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that we got a result.
         if(result.empty) {
-            throw new Exception("No records for for " ~
+            throw new RecordException("No records for for " ~
                     _getTable ~ " at " ~ to!string(conditions));
         }
 
@@ -462,7 +477,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that something was created.
         if(result < 1) {
-            throw new Exception("No record was created for " ~
+            throw new RecordException("No record was created for " ~
                     T.stringof ~ " by create().");
         }
 
@@ -505,7 +520,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that something was created.
         if(result < 1) {
-            throw new Exception("No record was updated for " ~
+            throw new RecordException("No record was updated for " ~
                     T.stringof ~ " by save().");
         }
     }
@@ -536,7 +551,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that something was created.
         if(result < 1) {
-            throw new Exception("No record was update for " ~
+            throw new RecordException("No record was update for " ~
                     T.stringof ~ " by save().");
         }
     }
@@ -567,7 +582,7 @@ mixin template ActiveRecord(T : Record) {
 
         // Check that something was created.
         if(result < 1) {
-            throw new Exception("No record was removed for " ~
+            throw new RecordException("No record was removed for " ~
                     T.stringof ~ " by remove().");
         }
     }

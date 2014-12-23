@@ -59,7 +59,7 @@ unittest {
 
         // Should not be reached.
         assert(false);
-    } catch(Exception e) {
+    } catch(RecordException e) {
         // Success.
     }
 
