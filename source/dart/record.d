@@ -285,9 +285,20 @@ mixin template ActiveRecord(T : Record) {
 
                         // Create delegate get and set.
                         info.get = delegate(Record local) {
+                                // Check if null-assignable.
+                                static if(isAssignable!(typeof(current), typeof(null))) {
+                                    // Check that the value abides by null rules.
+                                    if(info.notNull && !info.autoIncrement &&
+                                            __traits(getMember, cast(T)(local), member) is null) {
+                                        throw new RecordException("Non-nullable value of " ~
+                                                member ~ " was null.");
+                                    }
+                                }
+
                                 // Check for a length property.
                                 static if(__traits(hasMember, typeof(current), "length") ||
-                                        isArray!(typeof(current)) || isSomeString!(typeof(current))) {
+                                        isSomeString!(typeof(current)) ||
+                                        isArray!(typeof(current))) {
                                     // Check that length doesn't exceed max.
                                     if(info.maxLength != -1 && __traits(getMember,
                                             cast(T)(local), member).length > info.maxLength) {

@@ -52,17 +52,6 @@ unittest {
     assert(record.name == "Test2");
     assert(record.type == 2);
 
-    // Test max-length.
-    try {
-        record.name = "Test123";
-        record.save;
-
-        // Should not be reached.
-        assert(false);
-    } catch(RecordException e) {
-        // Success.
-    }
-
     // Test record selective save.
     record.name = "Test3";
     record.type = 3;
@@ -79,6 +68,28 @@ unittest {
     assert(records.length >= 1);
     assert(records[0].name == "Test2");
     assert(records[0].type == 3);
+
+    // Test max-length.
+    try {
+        record.name = "Test123";
+        record.save("name");
+
+        // Should not be reached.
+        assert(false);
+    } catch(RecordException e) {
+        // Success.
+    }
+
+    // Test not-null.
+    try {
+        record.name = null;
+        record.save("name");
+
+        // Should not be reached.
+        assert(false);
+    } catch(RecordException e) {
+        // Success.
+    }
 
     // Test record remove.
     record = records[0];
