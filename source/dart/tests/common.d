@@ -13,6 +13,7 @@ class TestRecord : Record {
     int id;
 
     @Column
+    @MaxLength(5)
     string name;
 
     @Column
@@ -50,6 +51,17 @@ unittest {
     assert(record !is null);
     assert(record.name == "Test2");
     assert(record.type == 2);
+
+    // Test max-length.
+    try {
+        record.name = "Test123";
+        record.save;
+
+        // Should not be reached.
+        assert(false);
+    } catch(Exception e) {
+        // Success.
+    }
 
     // Test record selective save.
     record.name = "Test3";

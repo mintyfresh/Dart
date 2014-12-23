@@ -32,7 +32,8 @@ struct Column {
  * MaxLength annotation type.
  * Specifies the max length of a field.
  *
- * This annotation is only meaningful for types that have a length.
+ * This annotation is only meaningful for types that declare
+ * a length property, and for fields of an array type.
  **/
 struct MaxLength {
     int maxLength;
@@ -258,6 +259,16 @@ mixin template ActiveRecord(T : Record) {
 
                         // Create delegate get and set.
                         info.get = delegate(Record local) {
+                                // Check for a length property.
+                                static if(__traits(hasMember, typeof(current), "length") ||
+                                        isArray!(typeof(current)) || isSomeString!(typeof(current))) {
+                                    // Check that length doesn't exceed max.
+                                    if(info.maxLength != -1 && __traits(getMember,
+                                            cast(T)(local), member).length > info.maxLength) {
+                                        throw new Exception("Value of " ~ member ~ " exceeds max length.");
+                                    }
+                                }
+
                                 return Variant(__traits(getMember, cast(T)(local), member));
                         };
                         info.set = delegate(Record local, Variant v) {
