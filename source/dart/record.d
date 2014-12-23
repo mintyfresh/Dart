@@ -321,10 +321,6 @@ mixin template ActiveRecord(T : Record) {
         // Check if the class defined an override name.
         _table = getTableDefinition!(T);
 
-        if(_table is null) {
-            throw new RecordException(T.stringof ~ " isn't bound to a table.");
-        }
-
         int colCount = 0;
         // Search through class members.
         foreach(member; __traits(derivedMembers, T)) {
@@ -624,7 +620,7 @@ static string getTableDefinition(T)() {
     }
 
     // Not found.
-    return null;
+    return T.stringof;
 }
 
 /**
