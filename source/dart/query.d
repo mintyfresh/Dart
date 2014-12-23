@@ -883,6 +883,22 @@ class SelectBuilder : QueryBuilder {
     }
 
     /**
+     * Performs a left-join operation on a list of tables.
+     **/
+    SelectBuilder leftJoin(string[] tables, string condition,
+            Variant[] params = null...)
+    in {
+        if(tables is null) {
+            throw new QueryException("Tables list cannot be null.");
+        }
+    } body {
+        selectJoin = SelectJoin(tables, condition);
+        this.params = join([this.params, params]);
+
+        return this;
+    }
+
+    /**
      * Attaches an addition query to this one, through a union.
      **/
     SelectBuilder withUnion(QueryBuilder query, bool distinct = true)
