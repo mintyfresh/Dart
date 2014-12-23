@@ -103,10 +103,13 @@ class Record {
          **/
         Connection _dbConnection;
 
-        /**
-         * Mysql database connection.
-         **/
-        MysqlDB _db;
+        // Mysql-native provides this.
+        version(Have_vibe_d) {
+            /**
+             * Mysql database connection.
+             **/
+            MysqlDB _db;
+        }
 
         /**
          * Gets a column definition, by name.
@@ -140,13 +143,21 @@ class Record {
          * Gets the database connection.
          **/
         Connection _getDBConnection() {
-            if(_db !is null) {
-                return _db.lockConnection();
-            } else if(_dbConnection !is null) {
-                return _dbConnection;
+            // Mysql-native provides this.
+            version(Have_vibe_d) {
+                if(_db !is null) {
+                    return _db.lockConnection();
+                } else if(_dbConnection !is null) {
+                    return _dbConnection;
+                }
             } else {
-                throw new RecordException("Record has no database connection.");
+                if(_dbConnection !is null) {
+                    return _dbConnection;
+                }
             }
+
+            // No database connection set.
+            throw new RecordException("Record has no database connection.");
         }
 
         /**
@@ -156,11 +167,14 @@ class Record {
             _dbConnection = conn;
         }
 
-        /**
-         * Sets the database connection.
-         **/
-        void _setMysqlDB(MysqlDB db) {
-            _db = db;
+        // Mysql-native provides this.
+        version(Have_vibe_d) {
+            /**
+             * Sets the database connection.
+             **/
+            void _setDBConnection(MysqlDB db) {
+                _db = db;
+            }
         }
 
         /**

@@ -20,7 +20,7 @@ class TestRecord : Record {
     int type;
 
     static this() {
-        _setMysqlDB(new MysqlDB("127.0.0.1", "test", "test", "test"));
+        _setDBConnection(new MysqlDB("127.0.0.1", "test", "test", "test"));
     }
 
 }
