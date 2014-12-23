@@ -433,8 +433,8 @@ mixin template ActiveRecord(T : Record) {
      **/
     static T get(KT)(KT key) {
         // Check for a query-producer override.
-        static if(__traits(hasMember, T, "_getQueryForGet")) {
-            auto query = _getQueryForGet(key);
+        static if(__traits(hasMember, T, "getQueryForGet")) {
+            auto query = getQueryForGet(key);
         } else {
             auto query = _getDefaultQueryForGet(key);
         }
@@ -465,8 +465,8 @@ mixin template ActiveRecord(T : Record) {
      **/
     static T[] find(KT)(KT[string] conditions...) {
         // Check for a query-producer override.
-        static if(__traits(hasMember, T, "_getQueryForFind")) {
-            auto query = _getQueryForFind(conditions);
+        static if(__traits(hasMember, T, "getQueryForFind")) {
+            auto query = getQueryForFind(conditions);
         } else {
             auto query = _getDefaultQueryForFind(conditions);
         }
@@ -504,8 +504,8 @@ mixin template ActiveRecord(T : Record) {
      **/
     void create() {
         // Check for a query-producer override.
-        static if(__traits(hasMember, T, "_getQueryForCreate")) {
-            QueryBuilder query = _getQueryForCreate(this);
+        static if(__traits(hasMember, T, "getQueryForCreate")) {
+            QueryBuilder query = getQueryForCreate(this);
         } else {
             QueryBuilder query = _getDefaultQueryForCreate(this);
         }
@@ -537,8 +537,8 @@ mixin template ActiveRecord(T : Record) {
      **/
     void save(string[] names = null...) {
         // Check for a query-producer override.
-        static if(__traits(hasMember, T, "_getQueryForSave")) {
-            auto query = _getQueryForSave(this, names);
+        static if(__traits(hasMember, T, "getQueryForSave")) {
+            auto query = getQueryForSave(this, names);
         } else {
             auto query = _getDefaultQueryForSave(this, names);
         }
@@ -558,8 +558,8 @@ mixin template ActiveRecord(T : Record) {
      **/
     void remove() {
         // Check for a query-producer override.
-        static if(__traits(hasMember, T, "_getQueryForRemove")) {
-            auto query = _getQueryForRemove(this);
+        static if(__traits(hasMember, T, "getQueryForRemove")) {
+            auto query = getQueryForRemove(this);
         } else {
             auto query = _getDefaultQueryForRemove(this);
         }
