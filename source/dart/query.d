@@ -34,6 +34,9 @@ class QueryException : Exception {
 
 }
 
+/**
+ * Query builder, for generic and prebaked queries from strings.
+ **/
 class GenericQuery : QueryBuilder {
 
     private {
@@ -66,6 +69,9 @@ class GenericQuery : QueryBuilder {
 
 }
 
+/**
+ * Builder for query where-clauses.
+ **/
 class WhereBuilder : QueryBuilder {
 
     private {
@@ -348,6 +354,9 @@ class WhereBuilder : QueryBuilder {
 
 }
 
+/**
+ * Query builder component for from-clause.
+ **/
 mixin template FromFunctions(T : QueryBuilder) {
 
     private {
@@ -359,6 +368,9 @@ mixin template FromFunctions(T : QueryBuilder) {
 
     }
 
+    /**
+     * Specifies a from value as a table name.
+     **/
     T from(string table)
     in {
         if(table is null) {
@@ -369,6 +381,9 @@ mixin template FromFunctions(T : QueryBuilder) {
         return this;
     }
 
+    /**
+     * Specifies a from value as a subquery and assignment.
+     **/
     T from(SelectBuilder query, string asName)
     in {
         if(query is null || asName is null) {
@@ -411,6 +426,9 @@ mixin template FromFunctions(T : QueryBuilder) {
 
 }
 
+/**
+ * Query builder component for where-clause.
+ **/
 mixin template WhereFunctions(T : QueryBuilder) {
 
     private {
@@ -482,6 +500,9 @@ mixin template WhereFunctions(T : QueryBuilder) {
 
 }
 
+/**
+ * Query builder component for order-by-clause.
+ **/
 mixin template OrderByFunctions(T : QueryBuilder) {
 
     /**
@@ -584,6 +605,9 @@ mixin template OrderByFunctions(T : QueryBuilder) {
 
 }
 
+/**
+ * Query builder component for limit-clause.
+ **/
 mixin template LimitFunctions(T : QueryBuilder) {
 
     private {
@@ -635,6 +659,9 @@ class SelectBuilder : QueryBuilder {
         string name;
         string[] params;
 
+        /**
+         * Checks if the select function has a value.
+         **/
         bool hasValue() {
             return name !is null;
         }
@@ -655,6 +682,9 @@ class SelectBuilder : QueryBuilder {
 
         string[] columns;
 
+        /**
+         * Checks if the select-columns list has a value.
+         **/
         bool hasValue() {
             return columns !is null &&
                     !columns.empty;
@@ -668,11 +698,17 @@ class SelectBuilder : QueryBuilder {
 
     }
 
+    /**
+     * Stores a secondary query for a union operation.
+     **/
     struct SelectUnion {
 
         QueryBuilder subquery;
         bool distinct;
 
+        /**
+         * Checks if the select union has a value.
+         **/
         bool hasValue() {
             return subquery !is null;
         }
