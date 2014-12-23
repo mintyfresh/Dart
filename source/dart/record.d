@@ -164,6 +164,43 @@ class Record {
         }
 
         /**
+         * Executes a query that produces a result set.
+         **/
+        ResultSet _executeQueryResult(QueryBuilder query) {
+            // Get a database connection.
+            auto conn = _getDBConnection();
+            auto command = Command(conn);
+
+            // Prepare the query.
+            command.sql = query.build;
+            command.prepare();
+
+            // Bind parameters and execute.
+            command.bindParameters(query.getParameters);
+            return command.execPreparedResult;
+        }
+
+        /**
+         * Executes a query that doesn't produce a result set.
+         **/
+        ulong _executeQuery(QueryBuilder query) {
+            // Get a database connection.
+            auto conn = _getDBConnection();
+            auto command = Command(conn);
+            ulong result;
+
+            // Prepare the query.
+            command.sql = query.build;
+            command.prepare();
+
+            // Bind parameters and execute.
+            command.bindParameters(query.getParameters);
+            command.execPrepared(result);
+
+            return result;
+        }
+
+        /**
          * Gets the query for get() operations.
          *
          * Overriden by _getQueryForGet().
@@ -377,10 +414,6 @@ mixin template ActiveRecord(T : Record) {
      * Gets an object by its primary key.
      **/
     static T get(KT)(KT key) {
-        // Get a database connection.
-        auto conn = _getDBConnection;
-        auto command = Command(conn);
-
         // Check for a query-producer override.
         static if(__traits(hasMember, T, "_getQueryForGet")) {
             auto query = _getQueryForGet(key);
@@ -388,13 +421,8 @@ mixin template ActiveRecord(T : Record) {
             auto query = _getDefaultQueryForGet(key);
         }
 
-        // Prepare the get() query.
-        command.sql = query.build;
-        command.prepare;
-
-        // Bind parameters and execute.
-        command.bindParameters(query.getParameters);
-        auto result = command.execPreparedResult;
+        // Execute the get() query.
+        ResultSet result = _executeQueryResult(query);
 
         // Check that we got a result.
         if(result.empty) {
@@ -418,10 +446,6 @@ mixin template ActiveRecord(T : Record) {
      * Finds matching objects, by column values.
      **/
     static T[] find(KT)(KT[string] conditions...) {
-        // Get a database connection.
-        auto conn = _getDBConnection();
-        auto command = Command(conn);
-
         // Check for a query-producer override.
         static if(__traits(hasMember, T, "_getQueryForFind")) {
             auto query = _getQueryForFind(conditions);
@@ -429,13 +453,8 @@ mixin template ActiveRecord(T : Record) {
             auto query = _getDefaultQueryForFind(conditions);
         }
 
-        // Prepare the find() query.
-        command.sql = query.build();
-        command.prepare();
-
-        // Bind parameters and execute.
-        command.bindParameters(query.getParameters);
-        auto result = command.execPreparedResult();
+        // Execute the find() query.
+        ResultSet result = _executeQueryResult(query);
 
         // Check that we got a result.
         if(result.empty) {
@@ -466,25 +485,15 @@ mixin template ActiveRecord(T : Record) {
      * Creates this object in the database, if it does not yet exist.
      **/
     void create() {
-        // Get a database connection.
-        auto conn = _getDBConnection;
-        auto command = Command(conn);
-        ulong result;
-
         // Check for a query-producer override.
         static if(__traits(hasMember, T, "_getQueryForCreate")) {
-            auto query = _getQueryForCreate(this);
+            QueryBuilder query = _getQueryForCreate(this);
         } else {
-            auto query = _getDefaultQueryForCreate(this);
+            QueryBuilder query = _getDefaultQueryForCreate(this);
         }
 
-        // Prepare the create() query.
-        command.sql = query.build;
-        command.prepare;
-
-        // Bind parameters and execute.
-        command.bindParameters(query.getParameters);
-        command.execPrepared(result);
+        // Execute the create() query.
+        ulong result = _executeQuery(query);
 
         // Check that something was created.
         if(result < 1) {
@@ -496,11 +505,10 @@ mixin template ActiveRecord(T : Record) {
         auto info = _getColumnInfo(_idColumn);
         if(info.autoIncrement) {
             // Fetch the last insert id.
-            command.sql = SelectBuilder.lastInsertId.build;
-            command.prepare;
+            query = SelectBuilder.lastInsertId;
+            ResultSet id = _executeQueryResult(query);
 
             // Update the auto incremented column.
-            auto id = command.execPreparedResult;
             info.set(this, id[0][0]);
         }
     }
@@ -509,11 +517,6 @@ mixin template ActiveRecord(T : Record) {
      * Saves this object in the database, if it already exists.
      **/
     void save() {
-        // Get a database connection.
-        auto conn = _getDBConnection;
-        auto command = Command(conn);
-        ulong result;
-
         // Check for a query-producer override.
         static if(__traits(hasMember, T, "_getQueryForSave")) {
             auto query = _getQueryForSave(this);
@@ -521,13 +524,8 @@ mixin template ActiveRecord(T : Record) {
             auto query = _getDefaultQueryForSave(this);
         }
 
-        // Prepare the save() query.
-        command.sql = query.build;
-        command.prepare;
-
-        // Bind parameters and execute.
-        command.bindParameters(query.getParameters);
-        command.execPrepared(result);
+        // Execute the save() query.
+        ulong result = _executeQuery(query);
 
         // Check that something was created.
         if(result < 1) {
@@ -540,11 +538,6 @@ mixin template ActiveRecord(T : Record) {
      * Updates a single column in the database.
      **/
     void save(string name) {
-        // Get a database connection.
-        auto conn = _getDBConnection;
-        auto command = Command(conn);
-        ulong result;
-
         // Check for a query-producer override.
         static if(__traits(hasMember, T, "_getQueryForSave")) {
             auto query = _getQueryForSave(this, name);
@@ -552,13 +545,8 @@ mixin template ActiveRecord(T : Record) {
             auto query = _getDefaultQueryForSave(this, name);
         }
 
-        // Prepare the save() query.
-        command.sql = query.build;
-        command.prepare;
-
-        // Bind parameters and execute.
-        command.bindParameters(query.getParameters);
-        command.execPrepared(result);
+        // Execute the save() query.
+        ulong result = _executeQuery(query);
 
         // Check that something was created.
         if(result < 1) {
@@ -571,11 +559,6 @@ mixin template ActiveRecord(T : Record) {
      * Removes this object from the database, if it already exists.
      **/
     void remove() {
-        // Get a database connection.
-        auto conn = _getDBConnection;
-        auto command = Command(conn);
-        ulong result;
-
         // Check for a query-producer override.
         static if(__traits(hasMember, T, "_getQueryForRemove")) {
             auto query = _getQueryForRemove(this);
@@ -583,13 +566,8 @@ mixin template ActiveRecord(T : Record) {
             auto query = _getDefaultQueryForRemove(this);
         }
 
-        // Prepare the remove() query.
-        command.sql = query.build;
-        command.prepare;
-
-        // Bind parameters and execute.
-        command.bindParameters(query.getParameters);
-        command.execPrepared(result);
+        // Execute the remove() query.
+        ulong result = _executeQuery(query);
 
         // Check that something was created.
         if(result < 1) {
