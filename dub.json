@@ -3,13 +3,20 @@
 	"license": "MIT",
 	"description": "D Active Record Types",
 	"copyright": "Copyright © 2014, Mihail K",
-	"authors": ["Mihail K"],
+	"authors": [
+		"Mihail K"
+	],
 	"dependencies": {
-		"vibe-d": "~>0.7.21",
+		"vibe-d": {"version" : "~>0.7.21", "optional": true},
 		"mysql-native": "~>0.1.0",
 		"dunit": "~>1.0.4"
 	},
-	"versions": [
-		"VibeDefaultMain"
+	"configurations": [
+		{
+			"name": "library",
+			"excludedSourceFiles": [
+				"source/app.d"
+			]
+		}
 	]
 }
