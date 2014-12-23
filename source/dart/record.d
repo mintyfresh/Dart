@@ -227,10 +227,8 @@ class Record {
 
         /**
          * Gets the query for get() operations.
-         *
-         * Overriden by getQueryForGet().
          **/
-        QueryBuilder getDefaultQueryForGet(KT)(KT key) {
+        QueryBuilder getQueryForGet(KT)(KT key) {
             SelectBuilder builder = new SelectBuilder()
                     .select(getColumnNames).from(getTableName).limit(1);
             return builder.where(new WhereBuilder().equals(getIdColumn, key));
@@ -238,10 +236,8 @@ class Record {
 
         /**
          * Gets the query for find() operations.
-         *
-         * Overriden by getQueryForFind().
          **/
-        QueryBuilder getDefaultQueryForFind(KT)(KT[string] conditions) {
+        QueryBuilder getQueryForFind(KT)(KT[string] conditions) {
             auto query = appender!string;
             SelectBuilder builder = new SelectBuilder()
                     .select(getColumnNames).from(getTableName);
@@ -251,10 +247,8 @@ class Record {
 
         /**
          * Gets the query for create() operations.
-         *
-         * Overriden by getQueryForCreate().
          **/
-        QueryBuilder getDefaultQueryForCreate(T)(T instance) {
+        QueryBuilder getQueryForCreate(T)(T instance) {
             InsertBuilder builder = new InsertBuilder()
                     .insert(getColumnNames).into(getTableName);
 
@@ -269,10 +263,8 @@ class Record {
 
         /**
          * Gets the query for update() operations.
-         *
-         * Overriden by getQueryForSave().
          **/
-        QueryBuilder getDefaultQueryForSave(T)(
+        QueryBuilder getQueryForSave(T)(
                 T instance, string[] columns = null...) {
             UpdateBuilder builder = new UpdateBuilder()
                     .update(getTableName).limit(1);
@@ -296,10 +288,8 @@ class Record {
 
         /**
          * Gets the query for remove() operations.
-         *
-         * Overriden by getQueryForRemove().
          **/
-        QueryBuilder getDefaultQueryForRemove(T)(T instance) {
+        QueryBuilder getQueryForRemove(T)(T instance) {
             DeleteBuilder builder = new DeleteBuilder()
                     .from(getTableName).limit(1);
 
@@ -435,12 +425,8 @@ mixin template ActiveRecord(T : Record) {
      * Gets an object by its primary key.
      **/
     static T get(KT)(KT key) {
-        // Check for a query-producer override.
-        static if(__traits(hasMember, T, "getQueryForGet")) {
-            auto query = getQueryForGet(key);
-        } else {
-            auto query = getDefaultQueryForGet(key);
-        }
+        // Get the query for the operation.
+        auto query = getQueryForGet(key);
 
         // Execute the get() query.
         ResultSet result = executeQueryResult(query);
@@ -467,12 +453,8 @@ mixin template ActiveRecord(T : Record) {
      * Finds matching objects, by column values.
      **/
     static T[] find(KT)(KT[string] conditions...) {
-        // Check for a query-producer override.
-        static if(__traits(hasMember, T, "getQueryForFind")) {
-            auto query = getQueryForFind(conditions);
-        } else {
-            auto query = getDefaultQueryForFind(conditions);
-        }
+        // Get the query for the operation.
+        auto query = getQueryForFind(conditions);
 
         // Execute the find() query.
         ResultSet result = executeQueryResult(query);
@@ -506,12 +488,8 @@ mixin template ActiveRecord(T : Record) {
      * Creates this object in the database, if it does not yet exist.
      **/
     void create() {
-        // Check for a query-producer override.
-        static if(__traits(hasMember, T, "getQueryForCreate")) {
-            QueryBuilder query = getQueryForCreate(this);
-        } else {
-            QueryBuilder query = getDefaultQueryForCreate(this);
-        }
+        // Get the query for the operation.
+        QueryBuilder query = getQueryForCreate(this);
 
         // Execute the create() query.
         ulong result = executeQuery(query);
@@ -539,12 +517,8 @@ mixin template ActiveRecord(T : Record) {
      * Optionally specifies a list of columns to be updated.
      **/
     void save(string[] names = null...) {
-        // Check for a query-producer override.
-        static if(__traits(hasMember, T, "getQueryForSave")) {
-            auto query = getQueryForSave(this, names);
-        } else {
-            auto query = getDefaultQueryForSave(this, names);
-        }
+        // Get the query for the operation.
+        auto query = getQueryForSave(this, names);
 
         // Execute the save() query.
         ulong result = executeQuery(query);
@@ -560,12 +534,8 @@ mixin template ActiveRecord(T : Record) {
      * Removes this object from the database, if it already exists.
      **/
     void remove() {
-        // Check for a query-producer override.
-        static if(__traits(hasMember, T, "getQueryForRemove")) {
-            auto query = getQueryForRemove(this);
-        } else {
-            auto query = getDefaultQueryForRemove(this);
-        }
+        // Get the query for the operation.
+        auto query = getQueryForRemove(this);
 
         // Execute the remove() query.
         ulong result = executeQuery(query);
