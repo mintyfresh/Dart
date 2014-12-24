@@ -7,9 +7,9 @@
 		"Mihail K"
 	],
 	"dependencies": {
-		"vibe-d": {"version" : "~>0.7.21", "optional": true},
-		"mysql-native": "~>0.1.0",
-		"dunit": "~>1.0.4"
+		"vibe-d": {"version" : ">=0.7.21", "optional": true},
+		"mysql-native": ">=0.1.0",
+		"dunit": ">=1.0.4"
 	},
 	"configurations": [
 		{
