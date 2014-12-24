@@ -55,7 +55,8 @@ enum Nullable;
  * AutoIncrement annotation type.
  * Indicates that this column is auto incremented.
  *
- * This annotation is only meaningful for Id columns.
+ * This annotation is only meaningful for Id columns,
+ * and cannot be assigned to non-numeric types.
  **/
 enum AutoIncrement;
 
@@ -387,6 +388,7 @@ mixin template ActiveRecord(T : Record) {
                         foreach(annotation; __traits(getAttributes, current)) {
                             // Check is @Id is present.
                             static if(is(annotation == Id)) {
+                                // Check for duplicate Id.
                                 if(_idColumn !is null) {
                                     throw new RecordException(T.stringof ~
                                             " already defined an Id column.");
@@ -402,6 +404,12 @@ mixin template ActiveRecord(T : Record) {
                             }
                             // Check if @AutoIncrement is present.
                             static if(is(annotation == AutoIncrement)) {
+                                // Check that this can be auto incremented.
+                                static if(is(!isNumeric!(typeof(current)))) {
+                                    throw new RecordException("Cannot increment" ~
+                                            member ~ " in " ~ T.stringof);
+                                }
+
                                 info.autoIncrement = true;
                             }
                             // Check if @MaxLength(int) is present.
