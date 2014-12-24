@@ -314,6 +314,67 @@ class Record {
 }
 
 /**
+ * Helper function template for create getter delegates.
+ **/
+static Variant delegate(Record)
+        createGetDelegate(T, string member)(ColumnInfo info) {
+    // Alias to target member, for type information.
+    alias current = Target!(__traits(getMember, T, member));
+
+    // Create the get delegate.
+    return delegate(Record local) {
+        // Check if null-assignable.
+        static if(isAssignable!(typeof(current), typeof(null))) {
+            // Check that the value abides by null rules.
+            if(info.notNull && !info.autoIncrement &&
+                    __traits(getMember, cast(T)(local), member) is null) {
+                throw new RecordException("Non-nullable value of " ~
+                        member ~ " was null.");
+            }
+        }
+
+        // Check for a length property.
+        static if(__traits(hasMember, typeof(current), "length") ||
+                isSomeString!(typeof(current)) || isArray!(typeof(current))) {
+            // Check that length doesn't exceed max.
+            if(info.maxLength != -1 && __traits(getMember,
+                    cast(T)(local), member).length > info.maxLength) {
+                throw new RecordException("Value of " ~
+                        member ~ " exceeds max length.");
+            }
+        }
+
+        // Convert value to variant.
+        static if(is(typeof(current) == Variant)) {
+            return __traits(getMember, cast(T)(local), member);
+        } else {
+            return Variant(__traits(getMember, cast(T)(local), member));
+        }
+    };
+}
+
+/**
+ * Helper function template for create setter delegates.
+ **/
+static void delegate(Record, Variant)
+        createSetDelegate(T, string member)(ColumnInfo local) {
+    // Alias to target member, for type information.
+    alias current = Target!(__traits(getMember, T, member));
+
+    // Create the set delegate.
+    return delegate(Record local, Variant v) {
+        // Convert value from variant.
+        static if(is(typeof(current) == Variant)) {
+            auto value = v;
+        } else {
+            auto value = v.coerce!(typeof(current));
+        }
+
+        __traits(getMember, cast(T)(local), member) = value;
+    };
+}
+
+/**
  * The ActiveRecord mixin.
  **/
 mixin template ActiveRecord(T : Record) {
@@ -343,46 +404,8 @@ mixin template ActiveRecord(T : Record) {
                         info.name = name;
 
                         // Create delegate get and set.
-                        info.get = delegate(Record local) {
-                                // Check if null-assignable.
-                                static if(isAssignable!(typeof(current), typeof(null))) {
-                                    // Check that the value abides by null rules.
-                                    if(info.notNull && !info.autoIncrement &&
-                                            __traits(getMember, cast(T)(local), member) is null) {
-                                        throw new RecordException("Non-nullable value of " ~
-                                                member ~ " was null.");
-                                    }
-                                }
-
-                                // Check for a length property.
-                                static if(__traits(hasMember, typeof(current), "length") ||
-                                        isSomeString!(typeof(current)) ||
-                                        isArray!(typeof(current))) {
-                                    // Check that length doesn't exceed max.
-                                    if(info.maxLength != -1 && __traits(getMember,
-                                            cast(T)(local), member).length > info.maxLength) {
-                                        throw new RecordException("Value of " ~
-                                                member ~ " exceeds max length.");
-                                    }
-                                }
-
-                                // Convert value to variant.
-                                static if(is(typeof(current) == Variant)) {
-                                    return __traits(getMember, cast(T)(local), member);
-                                } else {
-                                    return Variant(__traits(getMember, cast(T)(local), member));
-                                }
-                        };
-                        info.set = delegate(Record local, Variant v) {
-                                // Convert value from variant.
-                                static if(is(typeof(current) == Variant)) {
-                                    auto value = v;
-                                } else {
-                                    auto value = v.coerce!(typeof(current));
-                                }
-
-                                __traits(getMember, cast(T)(local), member) = value;
-                        };
+                        info.get = createGetDelegate!(T, member)(info);
+                        info.set = createSetDelegate!(T, member)(info);
 
                         // Populate other fields.
                         foreach(annotation; __traits(getAttributes, current)) {
@@ -405,7 +428,7 @@ mixin template ActiveRecord(T : Record) {
                             // Check if @AutoIncrement is present.
                             static if(is(annotation == AutoIncrement)) {
                                 // Check that this can be auto incremented.
-                                static if(is(!isNumeric!(typeof(current)))) {
+                                static if(!isNumeric!(typeof(current))) {
                                     throw new RecordException("Cannot increment" ~
                                             member ~ " in " ~ T.stringof);
                                 }
