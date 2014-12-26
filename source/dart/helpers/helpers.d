@@ -11,6 +11,7 @@ class ColumnBindings {
 
     bool isId = false;
     bool notNull = true;
+    bool compound = false;
     bool autoIncrement = false;
 
     int maxLength = -1;

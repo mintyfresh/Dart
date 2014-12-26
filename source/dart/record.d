@@ -53,6 +53,20 @@ enum Id;
 enum Nullable;
 
 /**
+ * Compound annotation type.
+ * Indicates that this type's fields a compound part of
+ * record types that use include it.
+ **/
+enum Compound;
+
+/**
+ * Embedded annotation type.
+ * Indicates that this field is a composite value, consisting
+ * of column definitions of its compound type.
+ **/
+enum Embedded;
+
+/**
  * AutoIncrement annotation type.
  * Indicates that this column is auto incremented.
  *

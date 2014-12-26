@@ -106,3 +106,40 @@ unittest {
     }
 
 }
+
+/* - Compound Fields - */
+/* - - - - - - - - - - */
+
+@Compound
+struct TestCompound {
+
+    @Column
+    @MaxLength(32)
+    string name;
+
+    @Column
+    @Nullable
+    @MaxLength(128)
+    string address;
+
+}
+
+@Table("test_record2")
+class TestRecord2 : Record!TestRecord2 {
+
+    mixin ActiveRecord!();
+
+    @Id
+    @AutoIncrement
+    int id;
+
+    @Embedded
+    TestCompound info;
+
+}
+
+unittest {
+
+    // TODO
+
+}
