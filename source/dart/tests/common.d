@@ -6,7 +6,7 @@ import dart.record;
 @Table("test_record")
 class TestRecord : Record!TestRecord {
 
-    mixin ActiveRecord!(TestRecord);
+    mixin ActiveRecord!();
 
     @Id
     @AutoIncrement
@@ -22,17 +22,6 @@ class TestRecord : Record!TestRecord {
     static this() {
         setDBConnection(new MysqlDB("127.0.0.1", "test", "test", "test"));
     }
-
-}
-
-@Table
-class TestRecord2 : Record!TestRecord2 {
-
-    mixin ActiveRecord!(TestRecord2);
-
-    @Id
-    @AutoIncrement
-    int id;
 
 }
 

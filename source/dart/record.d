@@ -119,14 +119,14 @@ class Record(T) {
         /**
          * Gets a column definition, by name.
          **/
-        ColumnInfo _getColumnInfo(string name) {
+        ColumnInfo getColumnInfo(string name) {
             return _columns[name];
         }
 
         /**
          * Adds a column definition to this record.
          **/
-        void _addColumnInfo(ColumnInfo ci) {
+        void addColumnInfo(ColumnInfo ci) {
             _columns[ci.name] = ci;
         }
 
@@ -138,10 +138,24 @@ class Record(T) {
         }
 
         /**
+         * Sets the name of the Id column.
+         **/
+        void setIdColumn(string column) {
+            _idColumn = column;
+        }
+
+        /**
          * Gets the name of the table for this record.
          **/
         string getTableName() {
             return _table;
+        }
+
+        /**
+         * Sets the name of the table for this record.
+         **/
+        void setTableName(string table) {
+            _table = table;
         }
 
         /**
@@ -265,7 +279,7 @@ class Record(T) {
 
             // Add column values to query.
             foreach(string name; getColumnNames) {
-                auto info = _getColumnInfo(name);
+                auto info = getColumnInfo(name);
                 builder.value(info.get(instance));
             }
 
@@ -288,12 +302,12 @@ class Record(T) {
 
             // Set column values in query.
             foreach(string name; columns) {
-                auto info = _getColumnInfo(name);
+                auto info = getColumnInfo(name);
                 builder.set(info.name, info.get(instance));
             }
 
             // Update the record using the primary id.
-            Variant id = _getColumnInfo(getIdColumn).get(instance);
+            Variant id = getColumnInfo(getIdColumn).get(instance);
             return builder.where(new WhereBuilder().equals(getIdColumn, id));
         }
 
@@ -305,7 +319,7 @@ class Record(T) {
                     .from(getTableName).limit(1);
 
             // Delete the record using the primary id.
-            Variant id = _getColumnInfo(getIdColumn).get(instance);
+            Variant id = getColumnInfo(getIdColumn).get(instance);
             return builder.where(new WhereBuilder().equals(getIdColumn, id));
         }
 
@@ -377,87 +391,85 @@ static void delegate(Object, Variant)
 /**
  * The ActiveRecord mixin.
  **/
-mixin template ActiveRecord(T : Record!RT, RT) {
+mixin template ActiveRecord() {
+
+    /**
+     * Alias to the local type.
+     **/
+    alias Type = Target!(__traits(parent, get));
 
     static this() {
         // Check if the class defined an override name.
-        _table = getTableDefinition!(T);
+        _table = getTableDefinition!(Type);
 
-        int colCount = 0;
         // Search through class members.
-        foreach(member; __traits(derivedMembers, T)) {
-            static if(__traits(compiles, __traits(getMember, T, member))) {
-                alias current = Target!(__traits(getMember, T, member));
+        foreach(member; __traits(derivedMembers, Type)) {
+            static if(__traits(compiles, __traits(getMember, Type, member))) {
+                alias current = Target!(__traits(getMember, Type, member));
 
                 // Check if this is a column.
-                static if(isColumn!(T, member)) {
+                static if(isColumn!(Type, member)) {
                     // Ensure that this isn't a function.
-                    static if(is(typeof(current) == function)) {
-                        throw new RecordException("Functions as columns is unsupported.");
-                    } else {
-                        // Find the column name.
-                        string name = getColumnDefinition!(T, member);
+                    static assert(!is(typeof(current) == function));
 
-                        // Create a column info record.
-                        auto info = new ColumnInfo();
-                        info.field = member;
-                        info.name = name;
+                    // Find the column name.
+                    string name = getColumnDefinition!(Type, member);
 
-                        // Create delegate get and set.
-                        info.get = createGetDelegate!(T, member)(info);
-                        info.set = createSetDelegate!(T, member)(info);
+                    // Create a column info record.
+                    auto info = new ColumnInfo();
+                    info.field = member;
+                    info.name = name;
 
-                        // Populate other fields.
-                        foreach(annotation; __traits(getAttributes, current)) {
-                            // Check is @Id is present.
-                            static if(is(annotation == Id)) {
-                                // Check for duplicate Id.
-                                if(_idColumn !is null) {
-                                    throw new RecordException(T.stringof ~
-                                            " already defined an Id column.");
-                                }
+                    // Create delegate get and set.
+                    info.get = createGetDelegate!(Type, member)(info);
+                    info.set = createSetDelegate!(Type, member)(info);
 
-                                // Save the Id column.
-                                _idColumn = info.name;
-                                info.isId = true;
+                    // Populate other fields.
+                    foreach(annotation; __traits(getAttributes, current)) {
+                        // Check is @Id is present.
+                        static if(is(annotation == Id)) {
+                            // Check for duplicate Id.
+                            if(getIdColumn !is null) {
+                                throw new RecordException(Type.stringof ~
+                                        " already defined an Id column.");
                             }
-                            // Check if @Nullable is present.
-                            static if(is(annotation == Nullable)) {
-                                info.notNull = false;
-                            }
-                            // Check if @AutoIncrement is present.
-                            static if(is(annotation == AutoIncrement)) {
-                                // Check that this can be auto incremented.
-                                static if(!isNumeric!(typeof(current))) {
-                                    throw new RecordException("Cannot increment" ~
-                                            member ~ " in " ~ T.stringof);
-                                }
 
-                                info.autoIncrement = true;
-                            }
-                            // Check if @MaxLength(int) is present.
-                            static if(is(typeof(annotation) == MaxLength)) {
-                                info.maxLength = annotation.maxLength;
-                            }
+                            // Save the Id column.
+                            setIdColumn(info.name);
+                            info.isId = true;
                         }
+                        // Check if @Nullable is present.
+                        static if(is(annotation == Nullable)) {
+                            info.notNull = false;
+                        }
+                        // Check if @AutoIncrement is present.
+                        static if(is(annotation == AutoIncrement)) {
+                            // Check that this can be auto incremented.
+                            static assert(isNumeric!(typeof(current)));
 
-                        // Store the column definition.
-                        _addColumnInfo(info);
-                        colCount++;
+                            info.autoIncrement = true;
+                        }
+                        // Check if @MaxLength(int) is present.
+                        static if(is(typeof(annotation) == MaxLength)) {
+                            info.maxLength = annotation.maxLength;
+                        }
                     }
+
+                    // Store the column definition.
+                    addColumnInfo(info);
                 }
             }
         }
 
         // Check is we have an Id.
-        if(_idColumn is null) {
-            throw new RecordException(T.stringof ~
+        if(getIdColumn is null) {
+            throw new RecordException(Type.stringof ~
                     " doesn't define an Id column.");
         }
 
         // Check if we have any columns.
-        if(colCount == 0) {
-            throw new RecordException(T.stringof ~
+        if(getColumnNames.length < 1) {
+            throw new RecordException(Type.stringof ~
                     " defines no valid columns.");
         }
     }
@@ -465,7 +477,7 @@ mixin template ActiveRecord(T : Record!RT, RT) {
     /**
      * Gets an object by its primary key.
      **/
-    static T get(KT)(KT key) {
+    static Type get(KT)(KT key) {
         // Get the query for the operation.
         auto query = getQueryForGet(key);
 
@@ -478,12 +490,13 @@ mixin template ActiveRecord(T : Record!RT, RT) {
                     getTableName ~ " at " ~ to!string(key));
         }
 
-        T instance = new T;
         auto row = result[0];
+        auto instance = new Type;
+
         // Bind column values to fields.
         foreach(int idx, string name; result.colNames) {
             auto value = row[idx];
-            _getColumnInfo(name).set(instance, value);
+            getColumnInfo(name).set(instance, value);
         }
 
         // Return the instance.
@@ -493,7 +506,7 @@ mixin template ActiveRecord(T : Record!RT, RT) {
     /**
      * Finds matching objects, by column values.
      **/
-    static T[] find(KT)(KT[string] conditions...) {
+    static Type[] find(KT)(KT[string] conditions...) {
         // Get the query for the operation.
         auto query = getQueryForFind(conditions);
 
@@ -501,20 +514,17 @@ mixin template ActiveRecord(T : Record!RT, RT) {
         ResultSet result = executeQueryResult(query);
 
         // Check that we got a result.
-        if(result.empty) {
-            throw new RecordException("No records found for " ~
-                    getTableName ~ " at " ~ to!string(conditions));
-        }
+        if(result.empty) return [];
 
-        T[] array;
+        Type[] array;
         // Create the initial array of elements.
         for(int i = 0; i < result.length; i++) {
-            T instance = new T;
             auto row = result[i];
+            auto instance = new Type;
 
             foreach(int idx, string name; result.colNames) {
                 auto value = row[idx];
-                _getColumnInfo(name).set(instance, value);
+                getColumnInfo(name).set(instance, value);
             }
 
             // Append the object.
@@ -538,11 +548,11 @@ mixin template ActiveRecord(T : Record!RT, RT) {
         // Check that something was created.
         if(result < 1) {
             throw new RecordException("No records were created for " ~
-                    T.stringof ~ " by create().");
+                    Type.stringof ~ " by create().");
         }
 
         // Update auto increment columns.
-        auto info = _getColumnInfo(getIdColumn);
+        auto info = getColumnInfo(getIdColumn);
         if(info.autoIncrement) {
             // Fetch the last insert id.
             query = SelectBuilder.lastInsertId;
@@ -567,7 +577,7 @@ mixin template ActiveRecord(T : Record!RT, RT) {
         // Check that something was created.
         if(result < 1) {
             throw new RecordException("No records were updated for " ~
-                    T.stringof ~ " by save().");
+                    Type.stringof ~ " by save().");
         }
     }
 
@@ -584,7 +594,7 @@ mixin template ActiveRecord(T : Record!RT, RT) {
         // Check that something was created.
         if(result < 1) {
             throw new RecordException("No records were removed for " ~
-                    T.stringof ~ " by remove().");
+                    Type.stringof ~ " by remove().");
         }
     }
 
