@@ -75,42 +75,54 @@ class RecordException : Exception {
 }
 
 /**
- * The record class type.
+ * A container type for Record information.
  **/
-class Record(T) {
+struct RecordData(T) {
 
     /**
-     * Identifiers are prefixed with an underscore to prevent collisions.
+     * The name of the corresponding table.
      **/
-    private static {
+    string table;
 
-        /**
-         * The name of the corresponding table.
-         **/
-        string _table;
+    /**
+     * The name of the primary id column.
+     **/
+    string idColumn;
 
-        /**
-         * The name of the primary id column.
-         **/
-        string _idColumn;
+    /**
+     * The column info table, for this record type.
+     **/
+    ColumnInfo[string] columns;
 
-        /**
-         * The column info table, for this record type.
-         **/
-        ColumnInfo[string] _columns;
+    /**
+     * Mysql database connection.
+     **/
+    Connection dbConnection;
 
+    // Mysql-native provides this.
+    version(Have_vibe_d) {
         /**
          * Mysql database connection.
          **/
-        Connection _dbConnection;
+        MysqlDB mysqlConnection;
+    }
 
-        // Mysql-native provides this.
-        version(Have_vibe_d) {
-            /**
-             * Mysql database connection.
-             **/
-            MysqlDB _db;
-        }
+}
+
+/**
+ * The record class type.
+ *
+ * Template argument ensures that static fields stay local
+ * to the template instance (and thus, to the Record itself).
+ **/
+class Record(Type) {
+
+    private static {
+
+        /**
+         * A container for static Record information.
+         **/
+        RecordData!Type _recordData;
 
     }
 
@@ -120,49 +132,49 @@ class Record(T) {
          * Gets a column definition, by name.
          **/
         ColumnInfo getColumnInfo(string name) {
-            return _columns[name];
+            return _recordData.columns[name];
         }
 
         /**
          * Adds a column definition to this record.
          **/
         void addColumnInfo(ColumnInfo ci) {
-            _columns[ci.name] = ci;
+            _recordData.columns[ci.name] = ci;
         }
 
         /**
          * Gets the name of the Id column.
          **/
         string getIdColumn() {
-            return _idColumn;
+            return _recordData.idColumn;
         }
 
         /**
          * Sets the name of the Id column.
          **/
         void setIdColumn(string column) {
-            _idColumn = column;
+            _recordData.idColumn = column;
         }
 
         /**
          * Gets the name of the table for this record.
          **/
         string getTableName() {
-            return _table;
+            return _recordData.table;
         }
 
         /**
          * Sets the name of the table for this record.
          **/
         void setTableName(string table) {
-            _table = table;
+            _recordData.table = table;
         }
 
         /**
          * Gets the column list for this record.
          **/
         string[] getColumnNames() {
-            return _columns.keys;
+            return _recordData.columns.keys;
         }
 
         /**
@@ -170,7 +182,7 @@ class Record(T) {
          **/
         Variant[] getColumnValues(T)(T instance) {
             Variant[] values;
-            foreach(name, info; _columns)
+            foreach(name, info; _recordData.columns)
                 values ~= info.get(instance);
             return values;
         }
@@ -181,14 +193,14 @@ class Record(T) {
         Connection getDBConnection() {
             // Mysql-native provides this.
             version(Have_vibe_d) {
-                if(_db !is null) {
-                    return _db.lockConnection();
-                } else if(_dbConnection !is null) {
-                    return _dbConnection;
+                if(_recordData.mysqlConnection !is null) {
+                    return _recordData.mysqlConnection.lockConnection();
+                } else if(_recordData.dbConnection !is null) {
+                    return _recordData.dbConnection;
                 }
             } else {
-                if(_dbConnection !is null) {
-                    return _dbConnection;
+                if(_recordData.dbConnection !is null) {
+                    return _recordData.dbConnection;
                 }
             }
 
@@ -200,7 +212,7 @@ class Record(T) {
          * Sets the database connection.
          **/
         void setDBConnection(Connection conn) {
-            _dbConnection = conn;
+            _recordData.dbConnection = conn;
         }
 
         // Mysql-native provides this.
@@ -209,7 +221,7 @@ class Record(T) {
              * Sets the database connection.
              **/
             void setDBConnection(MysqlDB db) {
-                _db = db;
+                _recordData.mysqlConnection = db;
             }
         }
 
@@ -333,12 +345,12 @@ class Record(T) {
 static Variant delegate(Object)
         createGetDelegate(T, string member)(ColumnInfo info) {
     // Alias to target member, for type information.
-    alias current = Target!(__traits(getMember, T, member));
+    alias Type = typeof(__traits(getMember, T, member));
 
     // Create the get delegate.
     return delegate(Object local) {
         // Check if null-assignable.
-        static if(isAssignable!(typeof(current), typeof(null))) {
+        static if(isAssignable!(Type, typeof(null))) {
             // Check that the value abides by null rules.
             if(info.notNull && !info.autoIncrement &&
                     __traits(getMember, cast(T)(local), member) is null) {
@@ -348,8 +360,7 @@ static Variant delegate(Object)
         }
 
         // Check for a length property.
-        static if(__traits(hasMember, typeof(current), "length") ||
-                isSomeString!(typeof(current)) || isArray!(typeof(current))) {
+        static if(__traits(hasMember, Type, "length") || isArray!Type) {
             // Check that length doesn't exceed max.
             if(info.maxLength != -1 && __traits(getMember,
                     cast(T)(local), member).length > info.maxLength) {
@@ -359,7 +370,7 @@ static Variant delegate(Object)
         }
 
         // Convert value to variant.
-        static if(is(typeof(current) == Variant)) {
+        static if(is(Type == Variant)) {
             return __traits(getMember, cast(T)(local), member);
         } else {
             return Variant(__traits(getMember, cast(T)(local), member));
@@ -373,15 +384,15 @@ static Variant delegate(Object)
 static void delegate(Object, Variant)
         createSetDelegate(T, string member)(ColumnInfo local) {
     // Alias to target member, for type information.
-    alias current = Target!(__traits(getMember, T, member));
+    alias Type = typeof(__traits(getMember, T, member));
 
     // Create the set delegate.
     return delegate(Object local, Variant v) {
         // Convert value from variant.
-        static if(is(typeof(current) == Variant)) {
+        static if(is(Type == Variant)) {
             auto value = v;
         } else {
-            auto value = v.coerce!(typeof(current));
+            auto value = v.coerce!Type;
         }
 
         __traits(getMember, cast(T)(local), member) = value;
@@ -398,19 +409,22 @@ mixin template ActiveRecord() {
      **/
     alias Type = Target!(__traits(parent, get));
 
+    /**
+     * Static initializer for column info.
+     **/
     static this() {
         // Check if the class defined an override name.
-        _table = getTableDefinition!(Type);
+        setTableName(getTableDefinition!(Type));
 
         // Search through class members.
         foreach(member; __traits(derivedMembers, Type)) {
             static if(__traits(compiles, __traits(getMember, Type, member))) {
-                alias current = Target!(__traits(getMember, Type, member));
+                alias Current = Target!(__traits(getMember, Type, member));
 
                 // Check if this is a column.
                 static if(isColumn!(Type, member)) {
                     // Ensure that this isn't a function.
-                    static assert(!is(typeof(current) == function));
+                    static assert(!is(typeof(Current) == function));
 
                     // Find the column name.
                     string name = getColumnDefinition!(Type, member);
@@ -425,7 +439,7 @@ mixin template ActiveRecord() {
                     info.set = createSetDelegate!(Type, member)(info);
 
                     // Populate other fields.
-                    foreach(annotation; __traits(getAttributes, current)) {
+                    foreach(annotation; __traits(getAttributes, Current)) {
                         // Check is @Id is present.
                         static if(is(annotation == Id)) {
                             // Check for duplicate Id.
@@ -627,12 +641,12 @@ class ColumnInfo {
 /**
  * Checks if a type is a table, and returns the table name.
  **/
-static string getTableDefinition(T)() {
+static string getTableDefinition(Type)() {
     // Search for @Column annotation.
-    foreach(annotation; __traits(getAttributes, T)) {
+    foreach(annotation; __traits(getAttributes, Type)) {
         // Check if @Table is present.
         static if(is(annotation == Table)) {
-            return T.stringof;
+            return Type.stringof;
         }
         // Check if @Table("name") is present.
         static if(is(typeof(annotation) == Table)) {
@@ -641,16 +655,16 @@ static string getTableDefinition(T)() {
     }
 
     // Not found.
-    return T.stringof;
+    return Type.stringof;
 }
 
 /**
  * Compile-time helper for finding columns.
  **/
-static bool isColumn(T, string member)() {
+static bool isColumn(Type, string member)() {
     // Search for @Column annotation.
     foreach(annotation; __traits(getAttributes,
-    __traits(getMember, T, member))) {
+            __traits(getMember, Type, member))) {
         // Check is @Id is present (implicit column).
         static if(is(annotation == Id)) {
             return true;
@@ -672,10 +686,10 @@ static bool isColumn(T, string member)() {
 /**
  * Determines the name of a column field.
  **/
-static string getColumnDefinition(T, string member)() {
+static string getColumnDefinition(Type, string member)() {
     // Search for @Column annotation.
     foreach(annotation; __traits(getAttributes,
-            __traits(getMember, T, member))) {
+            __traits(getMember, Type, member))) {
         // Check if @Column is present.
         static if(is(annotation == Column)) {
             return member;
