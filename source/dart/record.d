@@ -77,7 +77,7 @@ class RecordException : Exception {
 /**
  * The record class type.
  **/
-class Record {
+class Record(T) {
 
     /**
      * Identifiers are prefixed with an underscore to prevent collisions.
@@ -316,13 +316,13 @@ class Record {
 /**
  * Helper function template for create getter delegates.
  **/
-static Variant delegate(Record)
+static Variant delegate(Object)
         createGetDelegate(T, string member)(ColumnInfo info) {
     // Alias to target member, for type information.
     alias current = Target!(__traits(getMember, T, member));
 
     // Create the get delegate.
-    return delegate(Record local) {
+    return delegate(Object local) {
         // Check if null-assignable.
         static if(isAssignable!(typeof(current), typeof(null))) {
             // Check that the value abides by null rules.
@@ -356,13 +356,13 @@ static Variant delegate(Record)
 /**
  * Helper function template for create setter delegates.
  **/
-static void delegate(Record, Variant)
+static void delegate(Object, Variant)
         createSetDelegate(T, string member)(ColumnInfo local) {
     // Alias to target member, for type information.
     alias current = Target!(__traits(getMember, T, member));
 
     // Create the set delegate.
-    return delegate(Record local, Variant v) {
+    return delegate(Object local, Variant v) {
         // Convert value from variant.
         static if(is(typeof(current) == Variant)) {
             auto value = v;
@@ -377,7 +377,7 @@ static void delegate(Record, Variant)
 /**
  * The ActiveRecord mixin.
  **/
-mixin template ActiveRecord(T : Record) {
+mixin template ActiveRecord(T : Record!RT, RT) {
 
     static this() {
         // Check if the class defined an override name.
@@ -606,11 +606,11 @@ class ColumnInfo {
     /**
     * Gets the value of the field bound to this column.
     **/
-    Variant delegate(Record) get;
+    Variant delegate(Object) get;
     /**
     * Sets the value of the field bound to this column.
     **/
-    void delegate(Record, Variant) set;
+    void delegate(Object, Variant) set;
 
 }
 

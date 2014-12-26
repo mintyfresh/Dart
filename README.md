@@ -11,7 +11,7 @@ Here's a quick little demo on how to setup and use a Dart record.
 ```d
 
 @Table("users")
-class UserRecord : Record
+class UserRecord : Record!UserRecord
 {
 
     mixin ActiveRecord!UserRecord;
@@ -130,7 +130,7 @@ static QueryBuilder getQueryForCreate(UserRecord record)
 {
     return new InsertBuilder()
             .insert(join([getColumnNames(), "registered"])).into("users")
-            .values(join([getColumnValues(record), Clock.currTime()]));
+            .values(join([getColumnValues(record), Clock.currStdTime()]));
 }
 
 ```
