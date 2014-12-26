@@ -38,6 +38,9 @@ class UserRecord : Record!UserRecord
     @Nullable
     string status;
 
+    @Column("last_online")
+    ulong lastOnline;
+
 }
 
 ```
@@ -143,6 +146,45 @@ Dart provides 4 specialized query builder types, (`SelectBuilder`,
 a specific type SQL statement. Also available are `WhereBuilder`, for creating
 complex WHERE conditions, and `GenericBuilder`, which serves as a light wrapper
 around a query string and a set of parameters.
+
+For example, if we wanted to write our own function that finds all users that
+have set a user status, and have a status that's `like` 'offline' or haven't
+been online in at least a year, we could do something like:
+
+```d
+
+static QueryBuilder getQueryForFindInactive()
+{
+    auto whereCondition = new WhereBuilder()
+            .isNotNull("status").and()
+            .openParen()    // (
+                .like("status", "offline").or()
+                .lessThan("last_online", getTimeLastYear)
+            .closeParen();  // )
+
+    return new SelectBuilder().from("users")
+            .where(whereCondition)
+            .orderBy("username")
+            .limit(50);
+}
+
+```
+
+And the query produced will be along the lines of:
+
+```sql
+
+SELECT * FROM `users`
+WHERE `status` IS NOT NULL AND (`status` LIKE ? OR `last_online` < ?)
+ORDER BY `username`
+LIMIT 50;
+
+```
+
+And now we've got a function that produces a query to look up inactive users!
+The `WhereBuilder` will store the parameters passed to it internally, and
+they'll be passed safely through a prepared statement once the query gets
+executed.
 
 License
 -------
