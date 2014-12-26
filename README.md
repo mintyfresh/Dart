@@ -14,7 +14,7 @@ Here's a quick little demo on how to setup and use a Dart record.
 class UserRecord : Record!UserRecord
 {
 
-    mixin ActiveRecord!UserRecord;
+    mixin ActiveRecord!();
 
     static this()
     {
