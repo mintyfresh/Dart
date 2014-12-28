@@ -8,23 +8,44 @@ import dart.helpers.attributes;
 
 class ColumnBindings {
 
+    /**
+     * The name of the column.
+     **/
     string name;
+
+    /**
+     * The name of the bound field.
+     **/
     string field;
 
+    /**
+     * Whether the column is an Id.
+     **/
     bool isId = false;
+
+    /**
+     * Whether the column cannot be null.
+     **/
     bool notNull = true;
-    bool compound = false;
+
+    /**
+     * Auto increment value of the column.
+     **/
     bool autoIncrement = false;
 
+    /**
+     * The maximum length of the column.
+     **/
     int maxLength = -1;
 
     /**
-    * Gets the value of the field bound to this column.
-    **/
+     * Gets the value of the field bound to this column.
+     **/
     Variant delegate(Object) get;
+
     /**
-    * Sets the value of the field bound to this column.
-    **/
+     * Sets the value of the field bound to this column.
+     **/
     void delegate(Object, Variant) set;
 
 }
