@@ -289,10 +289,10 @@ class Record(Type) {
         /**
          * Gets the query for find() operations.
          **/
-        QueryBuilder getQueryForFind(KT)(KT[string] conditions) {
+        QueryBuilder getQueryForFind(KT)(KT[string] conditions, int limit) {
             auto query = appender!string;
             SelectBuilder builder = new SelectBuilder()
-                    .select(getColumnNames).from(getTableName);
+                    .select(getColumnNames).from(getTableName).limit(limit);
             formattedWrite(query, "%-(`%s`=?%| AND %)", conditions.keys);
             return builder.where(query.data, conditions.values);
         }
@@ -475,9 +475,9 @@ mixin template ActiveRecord() {
     /**
      * Finds matching objects, by column values.
      **/
-    static Type[] find(KT)(KT[string] conditions...) {
+    static Type[] find(KT)(KT[string] conditions, int limit = -1) {
         // Get the query for the operation.
-        auto query = getQueryForFind(conditions);
+        auto query = getQueryForFind(conditions, limit);
 
         // Execute the find() query.
         ResultSet result = executeQueryResult(query);

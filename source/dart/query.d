@@ -621,7 +621,7 @@ mixin template LimitFunctions(T : QueryBuilder) {
      **/
     T limit(int count)
     in {
-        if(count < 0) {
+        if(count < -1) {
             throw new QueryException("Limit cannot be negative.");
         }
     } body {
