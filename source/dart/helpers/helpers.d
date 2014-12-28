@@ -96,6 +96,27 @@ static bool isColumn(Type, string member)() {
 }
 
 /**
+ * Compile-time helper for finding columns.
+ **/
+static bool isJoinColumn(Type, string member)() {
+    // Search for @JoinColumn annotation.
+    foreach(annotation; __traits(getAttributes,
+            __traits(getMember, Type, member))) {
+        // Check if @JoinColumn is present.
+        static if(is(annotation == JoinColumn)) {
+            return true;
+        }
+        // Check if @JoinColumn("name", "mappedBy") is present.
+        static if(is(typeof(annotation) == JoinColumn)) {
+            return true;
+        }
+    }
+
+    // Not found.
+    return false;
+}
+
+/**
  * Determines the name of a column field.
  **/
 static string getColumnDefinition(Type, string member)() {

@@ -24,6 +24,23 @@ struct Column {
 }
 
 /**
+ * JoinColumn annotation type.
+ **/
+struct JoinColumn {
+    /**
+     * Specifies the name of the column.
+     * (Optional) Default: Name of annotated field.
+     **/
+    string name;
+
+    /**
+     * Specifies the name of the field that maps this column.
+     * (Optional) Default: Id of the field's record type.
+     **/
+    string mappedBy;
+}
+
+/**
  * MaxLength annotation type.
  *
  * This annotation is only meaningful for types that declare
