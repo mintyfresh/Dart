@@ -111,7 +111,7 @@ a system for customizing their behaviors.
 |Record Function|Query Producer Signature                               |
 |:--------------|:------------------------------------------------------|
 |get            |`getQueryForGet(KT)(KT key)`                           |
-|find           |`getQueryForFind(KT)(KT[string] conditions)`           |
+|find           |`getQueryForFind(KT)(KT[string] conditions, int limit)`|
 |create         |`getQueryForCreate(T)(T record)`                       |
 |save           |`getQueryForSave(T)(T record, string[] columns = null)`|
 |remove         |`getQueryForRemove(T)(T record)`                       |
