@@ -103,21 +103,23 @@ static Variant delegate(Object)
 
     // Create the get delegate.
     return delegate(Object local) {
+        T record = cast(T)(local);
+
         // Check if null-assignable.
         static if(isAssignable!(Type, typeof(null))) {
             // Check that the value abides by null rules.
             if(info.notNull && !info.autoIncrement &&
-                    __traits(getMember, cast(T)(local), member) is null) {
+                    __traits(getMember, record, member) is null) {
                 throw new RecordException("Non-nullable value of " ~
                         member ~ " was null.");
             }
         }
 
         // Check for a length property.
-        static if(__traits(hasMember, Type, "length") || isArray!Type) {
+        static if(hasMember!(Type, "length") || isArray!Type) {
             // Check that length doesn't exceed max.
             if(info.maxLength != -1 && __traits(getMember,
-                    cast(T)(local), member).length > info.maxLength) {
+                    record, member).length > info.maxLength) {
                 throw new RecordException("Value of " ~
                         member ~ " exceeds max length.");
             }
@@ -125,9 +127,9 @@ static Variant delegate(Object)
 
         // Convert value to variant.
         static if(is(Type == Variant)) {
-            return __traits(getMember, cast(T)(local), member);
+            return __traits(getMember, record, member);
         } else {
-            return Variant(__traits(getMember, cast(T)(local), member));
+            return Variant(__traits(getMember, record, member));
         }
     };
 }
