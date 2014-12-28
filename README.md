@@ -10,6 +10,8 @@ Here's a quick little demo on how to setup and use a Dart record.
 
 ```d
 
+import dart.record;
+
 @Table("users")
 class UserRecord : Record!UserRecord
 {
