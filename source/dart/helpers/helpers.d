@@ -2,7 +2,9 @@
 module dart.helpers.helpers;
 
 import std.variant;
+
 import dart.record;
+import dart.helpers.attributes;
 
 class ColumnBindings {
 

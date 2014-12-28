@@ -11,69 +11,8 @@ public import std.variant;
 public import mysql.db;
 
 public import dart.query;
+public import dart.helpers.attributes;
 public import dart.helpers.helpers;
-
-/**
- * Table annotation type.
- * Optionally specifies the name of the table.
- **/
-struct Table {
-    string name;
-}
-
-/**
- * Column annotation type.
- * Optionally specifies the name of the column.
- **/
-struct Column {
-    string name;
-}
-
-/**
- * MaxLength annotation type.
- * Specifies the max length of a field.
- *
- * This annotation is only meaningful for types that declare
- * a length property, and for fields of an array type.
- **/
-struct MaxLength {
-    int maxLength;
-}
-
-/**
- * Id annotation type.
- * Indicates that this column is the primary Id.
- **/
-enum Id;
-
-/**
- * Nullable annotation type.
- * Indicates that this column may be null.
- **/
-enum Nullable;
-
-/**
- * Compound annotation type.
- * Indicates that this type's fields a compound part of
- * record types that use include it.
- **/
-enum Compound;
-
-/**
- * Embedded annotation type.
- * Indicates that this field is a composite value, consisting
- * of column definitions of its compound type.
- **/
-enum Embedded;
-
-/**
- * AutoIncrement annotation type.
- * Indicates that this column is auto incremented.
- *
- * This annotation is only meaningful for Id columns,
- * and cannot be assigned to non-numeric types.
- **/
-enum AutoIncrement;
 
 /**
  * Exception type produced by record operations.
